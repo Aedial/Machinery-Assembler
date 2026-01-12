@@ -1,0 +1,20 @@
+# Machinery Assembler Language File
+
+# JEI Category
+jei.category.machineryassembler.structure_preview=结构预览
+
+# Commands
+commands.ma-reload.usage=/ma-reload - 重载所有结构定义
+
+# Messages
+message.machineryassembler.preview_cancelled=已取消预览。
+
+# Keybinds
+key.categories.machineryassembler=机械组装器（Machinery Assembler）
+key.machineryassembler.cancel_preview=取消预览
+key.machineryassembler.move_forward=向前移动预览
+key.machineryassembler.move_backward=向后移动预览
+key.machineryassembler.move_left=向左移动预览
+key.machineryassembler.move_right=向右移动预览
+key.machineryassembler.move_up=向上移动预览
+key.machineryassembler.move_down=向下移动预览
