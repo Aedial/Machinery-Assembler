@@ -1,0 +1,16 @@
+{
+    "package": "com.machineryassembler.mixin",
+    "refmap": "mixins.machineryassembler.refmap.json",
+    "target": "@env(DEFAULT)",
+    "minVersion": "0.8",
+    "compatibilityLevel": "JAVA_8",
+    "priority": 1500,
+    "mixins": [
+    ],
+    "client": [
+        "AccessorBlockArrayPreviewRenderHelper",
+        "MixinBlockArrayPreviewRenderHelper",
+        "MixinWorldSceneRendererWidget",
+        "MixinDynamicMachineRenderContext"
+    ]
+}

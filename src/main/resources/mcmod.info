@@ -1,0 +1,16 @@
+[
+  {
+    "modid": "machineryassembler",
+    "name": "Machinery Assembler",
+    "description": "A mod for displaying multiblock structures in JEI, utilizing MMCE's preview system.",
+    "version": "${version}",
+    "mcversion": "${mcversion}",
+    "url": "",
+    "updateUrl": "",
+    "authorList": ["Aedial"],
+    "credits": "MMCE for the preview system",
+    "logoFile": "",
+    "screenshots": [],
+    "dependencies": ["modularmachinery-community-edition", "mixinbooter", "crafttweaker"]
+  }
+]

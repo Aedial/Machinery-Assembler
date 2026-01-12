@@ -1,0 +1,20 @@
+# Machinery Assembler Language File
+
+# JEI Category
+jei.category.machineryassembler.structure_preview=Structure Preview
+
+# Commands
+commands.ma-reload.usage=/ma-reload - Reloads all structure definitions
+
+# Messages
+message.machineryassembler.preview_cancelled=Preview cancelled.
+
+# Keybinds
+key.categories.machineryassembler=Machinery Assembler
+key.machineryassembler.cancel_preview=Cancel Preview
+key.machineryassembler.move_forward=Move Preview Forward
+key.machineryassembler.move_backward=Move Preview Backward
+key.machineryassembler.move_left=Move Preview Left
+key.machineryassembler.move_right=Move Preview Right
+key.machineryassembler.move_up=Move Preview Up
+key.machineryassembler.move_down=Move Preview Down
