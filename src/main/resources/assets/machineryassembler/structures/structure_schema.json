@@ -1,0 +1,95 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Machinery Assembler Structure",
+  "description": "Defines a multiblock structure for display in JEI",
+  "type": "object",
+  "required": ["id", "inputs", "shape"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier used for lang key, JEI category, and item registration"
+    },
+    "register-as-item": {
+      "type": "boolean",
+      "description": "Whether to register this structure as an item in JEI for easy referencing",
+      "default": false
+    },
+    "messages": {
+      "type": "array",
+      "description": "Optional messages to display in JEI",
+      "items": {
+        "type": "object",
+        "required": ["key", "level"],
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Localization key for the message"
+          },
+          "level": {
+            "type": "string",
+            "enum": ["info", "warning", "error"],
+            "description": "Message severity level"
+          },
+          "item": {
+            "type": "string",
+            "description": "Optional item to display with the message (format: 'modid:itemid' or 'modid:itemid@meta' or 'modid:itemid*count')"
+          }
+        }
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "description": "Mapping of single characters to block definitions",
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "string",
+            "description": "Block ID with optional inline meta (e.g., 'minecraft:stone' or 'minecraft:wool@3')"
+          },
+          {
+            "type": "object",
+            "required": ["id"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Block ID with optional inline meta"
+              },
+              "meta": {
+                "type": "integer",
+                "description": "Block metadata (0-15)",
+                "minimum": 0,
+                "maximum": 15
+              },
+              "nbt": {
+                "type": "object",
+                "description": "NBT data for the block"
+              }
+            }
+          },
+          {
+            "type": "array",
+            "description": "List of acceptable blocks (OR logic)",
+            "items": {
+              "type": "string",
+              "description": "Block ID with optional inline meta"
+            },
+            "minItems": 1
+          }
+        ]
+      }
+    },
+    "shape": {
+      "type": "array",
+      "description": "3D shape definition: shape[y][z] = string of characters for x-axis row",
+      "items": {
+        "type": "array",
+        "description": "A horizontal layer (y level)",
+        "items": {
+          "type": "string",
+          "description": "A row of blocks along the x-axis. Use '_' for air/empty."
+        }
+      },
+      "minItems": 1
+    }
+  }
+}

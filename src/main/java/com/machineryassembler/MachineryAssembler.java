@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 Machinery Assembler Contributors
 /*
  * Machinery Assembler
  *
@@ -18,19 +20,23 @@ import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
 import com.machineryassembler.common.CommonProxy;
 
 
+/**
+ * Machinery Assembler - A standalone mod for displaying multiblock structures in JEI.
+ * Provides structure preview and building assistance without controller dependency.
+ */
 @Mod(
     modid = MachineryAssembler.MODID,
     name = MachineryAssembler.NAME,
     version = MachineryAssembler.VERSION,
-    dependencies = "required-after:modularmachinery@[2.1.0,);" +
-                   "after:jei@[4.13.1.222,);",
-    acceptedMinecraftVersions = "[1.12.2]"
+    dependencies = "after:jei@[4.13.1.222,);",
+    acceptedMinecraftVersions = "[1.12.2]",
+    guiFactory = "com.machineryassembler.client.config.ConfigGuiFactory"
 )
 public class MachineryAssembler {
 
     public static final String MODID = "machineryassembler";
     public static final String NAME = "Machinery Assembler";
-    public static final String VERSION = "0.1.0";
+    public static final String VERSION = "0.2.0";
     public static final String CLIENT_PROXY = "com.machineryassembler.client.ClientProxy";
     public static final String COMMON_PROXY = "com.machineryassembler.common.CommonProxy";
 

@@ -4,9 +4,13 @@ import java.io.File;
 
 import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
 
+import net.minecraftforge.common.ForgeChunkManager;
+
 import com.machineryassembler.MachineryAssembler;
 import com.machineryassembler.common.command.CommandReloadStructures;
+import com.machineryassembler.common.config.AutobuildConfig;
 import com.machineryassembler.common.data.DataHolder;
+import com.machineryassembler.common.network.NetworkHandler;
 import com.machineryassembler.common.structure.StructureRegistry;
 
 
@@ -16,10 +20,20 @@ public class CommonProxy {
 
     public static void loadModData(File configDir) {
         dataHolder.setup(configDir);
+
+        // Initialize config
+        File configFile = new File(configDir, MachineryAssembler.MODID + "/autobuild.cfg");
+        AutobuildConfig.init(configFile);
     }
 
     public void preInit() {
+        NetworkHandler.init();
         StructureRegistry.preloadStructures();
+
+        // Register chunk loading callback for autobuild
+        ForgeChunkManager.setForcedChunkLoadingCallback(MachineryAssembler.instance, (tickets, world) -> {
+            // We don't need to reload tickets on world load since autobuild is one-shot
+        });
     }
 
     public void init() {

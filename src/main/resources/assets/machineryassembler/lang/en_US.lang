@@ -9,6 +9,27 @@ commands.ma-reload.usage=/ma-reload - Reloads all structure definitions
 # Messages
 message.machineryassembler.preview_cancelled=Preview cancelled.
 
+# GUI Messages
+gui.machineryassembler.preview.place=Preview started. Use arrow keys to move, right-click to fix position.
+gui.machineryassembler.preview.fixed=Preview position fixed.
+gui.machineryassembler.preview.complete=Structure complete!
+
+# GUI Labels
+gui.machineryassembler.mode.3d=3D View
+gui.machineryassembler.mode.2d=2D View
+gui.machineryassembler.layer=Layer %d/%d
+gui.machineryassembler.hint.drag=Drag to rotate
+gui.machineryassembler.hint.scroll=Scroll to zoom
+gui.machineryassembler.hint.updown=Scroll to change layer
+gui.machineryassembler.button.preview=In-World Preview
+gui.machineryassembler.button.mode=2D/3D
+
+# JEI Button Tooltips
+gui.machineryassembler.button.layer.to2d=Switch to 2D layer view
+gui.machineryassembler.button.layer.to3d=Switch to 3D view
+gui.machineryassembler.button.world_preview=Place in-world preview
+gui.machineryassembler.button.reset=Reset view
+
 # Keybinds
 key.categories.machineryassembler=Machinery Assembler
 key.machineryassembler.cancel_preview=Cancel Preview
@@ -18,3 +39,42 @@ key.machineryassembler.move_left=Move Preview Left
 key.machineryassembler.move_right=Move Preview Right
 key.machineryassembler.move_up=Move Preview Up
 key.machineryassembler.move_down=Move Preview Down
+
+# Assembler's Baton Item
+item.machineryassembler.assembler_baton.name=Assembler's Baton
+item.machineryassembler.assembler_baton.selected=Selected: %s
+item.machineryassembler.assembler_baton.clear_hint=Press Escape to clear selection
+item.machineryassembler.assembler_baton.no_selection=Right-click to select a structure
+item.machineryassembler.assembler_baton.focus=Focus block: %s
+
+# Baton GUI
+gui.machineryassembler.baton.no_selection=Select a structure from the list
+gui.machineryassembler.baton.double_click_hint=Double-click to select for autobuild
+gui.machineryassembler.baton.i18n.on=Show: Localized Names
+gui.machineryassembler.baton.i18n.off=Show: Registry IDs
+
+# Baton Messages
+message.machineryassembler.baton.selected=Structure selected. Right-click to build.
+message.machineryassembler.baton.invalid_structure=Selected structure no longer exists.
+message.machineryassembler.baton.fix_first=Fix the preview position first (right-click while floating).
+message.machineryassembler.baton.building=Sending autobuild request...
+message.machineryassembler.baton.obstructed=Build blocked: %d obstructions detected (highlighted in red/orange).
+message.machineryassembler.baton.missing_blocks=Missing %d blocks total.
+message.machineryassembler.baton.missing_entry=  - %s x%d
+message.machineryassembler.baton.missing_more=  ... and %d more types
+message.machineryassembler.baton.missing_aborted=Build aborted: insufficient blocks (partial builds disabled).
+message.machineryassembler.baton.build_complete=Autobuild complete! Placed %d blocks.
+message.machineryassembler.baton.partial_build=Partial build: %d placed, %d failed.
+message.machineryassembler.baton.build_failed=Autobuild failed.
+
+# Config
+config.machineryassembler.consumeBlocksInCreative=Consume Blocks in Creative
+config.machineryassembler.consumeBlocksInCreative.tooltip=Whether creative mode players should have blocks consumed during autobuild.
+config.machineryassembler.allowPartialBuilds=Allow Partial Builds
+config.machineryassembler.allowPartialBuilds.tooltip=Whether to allow partial builds when not all blocks are available. If false, autobuild will be aborted when blocks are missing.
+config.machineryassembler.blocksPerTick=Blocks Per Tick
+config.machineryassembler.blocksPerTick.tooltip=Number of blocks to place per tick during autobuild. Fractional values are allowed (e.g. 0.5 = one block every 2 ticks). Higher values build faster but may cause lag.
+config.machineryassembler.maxBuildDistance=Max Build Distance
+config.machineryassembler.maxBuildDistance.tooltip=Maximum distance from player for autobuild. Set to 0 for unlimited.
+config.machineryassembler.detailedMissingReport=Detailed Missing Block Report
+config.machineryassembler.detailedMissingReport.tooltip=Whether to report each missing block type in chat. If false, only shows total count.

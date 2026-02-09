@@ -1,66 +1,115 @@
-plugins {
-    id 'java-library'
-    id 'maven-publish'
-    id 'org.jetbrains.gradle.plugin.idea-ext' version '1.1.7'
-    id 'eclipse'
-    id 'com.gtnewhorizons.retrofuturagradle' version '1.4.0'
-    id 'net.darkhax.curseforgegradle' version '1.1.24'
-}
-
-// Project properties
-group = 'com.machineryassembler'
-version = '0.1.0'
-archivesBaseName = 'machinery-assembler'
-
-// Set the toolchain version
-java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(17))
-        vendor.set(JvmVendorSpec.AZUL)
+buildscript {
+    repositories {
+        jcenter()
+        maven { url = "https://maven.minecraftforge.net" }
+        maven { url = "https://files.minecraftforge.net/maven" } // legacy fallback
+        mavenCentral()
+        maven { url = "https://plugins.gradle.org/m2/" }
     }
-    withSourcesJar()
+    dependencies {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
+        classpath 'gradle.plugin.com.matthewprenger:CurseGradle:1.2.0'
+    }
 }
 
-// RFG configuration
+apply plugin: 'net.minecraftforge.gradle.forge'
+
+version = "0.2.0"
+group = "com.machineryassembler"
+archivesBaseName = "machinery-assembler"
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
 minecraft {
-    mcVersion.set('1.12.2')
-    username.set('Developer')
-    
-    // Generate a field named VERSION with the mod version in the injected Tags class
-    injectedTags.put('VERSION', project.version)
-    
-    // Enable assertions and mixin args
-    def args = [
-        "-ea:${project.group}",
-        "-Dfml.coreMods.load=com.machineryassembler.mixin.MAEarlyMixinLoader",
-        "-Dmixin.hotSwap=true",
-        "-Dmixin.checks.interfaces=true",
-        "-Dmixin.debug.export=true"
-    ]
-    extraRunJvmArguments.addAll(args)
+    version = "1.12.2-14.23.5.2847"
+    runDir = "run"
+    mappings = "stable_39"
 }
 
-// Generates a class with the mod version
-tasks.injectTags.configure {
-    outputClassName.set("${project.group}.Tags")
+repositories {
+    mavenCentral()
+    jcenter()
+    maven { url 'https://maven.minecraftforge.net' }
+    maven { url 'https://maven.blamejared.com' }
+    maven { url 'https://cursemaven.com' }
 }
 
-// Put the version from gradle into mcmod.info
-tasks.processResources.configure {
-    inputs.property('version', project.version)
-    inputs.property('mcversion', minecraft.mcVersion.get())
-    
-    filesMatching('mcmod.info') {
-        expand('version': project.version, 'mcversion': minecraft.mcVersion.get())
+configurations {
+    deobfCompile
+}
+
+dependencies {
+    // JEI (as of 2024-10-26)
+    deobfCompile "curse.maven:jei-238222:5846804"
+
+    // Fastutil for BlockPos2ValueMap
+    compile 'it.unimi.dsi:fastutil:8.5.12'
+}
+
+processResources {
+    inputs.property "version", project.version
+    inputs.property "mcversion", project.minecraft.version
+
+    from(sourceSets.main.resources.srcDirs) {
+        include 'mcmod.info'
+        expand 'version': project.version, 'mcversion': project.minecraft.version
+    }
+
+    // Ensure all other resources are still copied (models, lang, textures, etc.)
+    from(sourceSets.main.resources.srcDirs) {
+        exclude 'mcmod.info'
     }
 }
 
-// Create lowercase duplicates of all language files for casing-sensitive loaders
-// Source files should use uppercase (en_US.lang), this generates lowercase variants (en_us.lang)
-tasks.processResources.doLast {
+// --------------------
+// CurseForge publishing
+// --------------------
+// Configure CurseGradle only if a project id is provided via -PcurseforgeProjectId or env CURSEFORGE_PROJECT_ID
+def cfProjectId = (project.findProperty('curseforgeProjectId') ?: System.getenv('CURSEFORGE_PROJECT_ID'))
+if (cfProjectId) {
+    apply plugin: 'com.matthewprenger.cursegradle'
+
+    def cfReleaseType = (project.findProperty('curseforgeReleaseType') ?: 'release')
+    def cfChangelog = (project.findProperty('curseforgeChangelog') ?: '')
+    def cfApiKey = (System.getenv('CURSEFORGE_TOKEN') ?: '')
+
+    curseforge {
+        apiKey = cfApiKey
+
+        project {
+            id = cfProjectId.toString()
+            releaseType = cfReleaseType.toString()
+
+            addGameVersion '1.12.2'
+
+            mainArtifact(jar) {
+                displayName = "Machinery Assembler ${project.version}"
+                changelog = cfChangelog
+                changelogType = 'markdown'
+            }
+
+            relations {
+                optionalDependency "jei"
+            }
+        }
+    }
+
+    // Ensure the uploaded artifact is reobfuscated for release
+    afterEvaluate {
+        tasks.findAll { it.name.startsWith('curseforge') }.each { t ->
+            t.dependsOn 'reobfJar'
+        }
+    }
+}
+
+// Create lowercase duplicates of language files in the built resources directory
+// This avoids having to maintain duplicate source files for casing-sensitive loaders
+processResources.doLast {
     def langDir = file("${buildDir}/resources/main/assets/machineryassembler/lang")
     if (!langDir.exists()) return
 
+    // For each language file like 'en_US.lang', create the canonical 'en_us.lang' variant
     langDir.eachFile { File f ->
         if (!f.name.toLowerCase().endsWith('.lang')) return
 
@@ -72,101 +121,5 @@ tasks.processResources.doLast {
             dest.bytes = f.bytes
             println "[lang] created canonical variant: ${dest.name}"
         }
-    }
-}
-
-tasks.compileJava.configure {
-    sourceCompatibility = '17'
-    options.release = 8
-    options.encoding = 'UTF-8'
-    
-    javaCompiler = javaToolchains.compilerFor {
-        languageVersion = JavaLanguageVersion.of(17)
-    }
-}
-
-tasks.jar.configure {
-    manifest {
-        attributes(
-            'FMLCorePlugin': 'com.machineryassembler.mixin.MAEarlyMixinLoader',
-            'FMLCorePluginContainsFMLMod': 'true'
-        )
-    }
-}
-
-// Repositories
-repositories {
-    maven {
-        url = uri('https://maven.cleanroommc.com')
-    }
-    maven {
-        url = uri('https://cursemaven.com')
-    }
-    maven {
-        url = uri('https://maven.blamejared.com/')
-    }
-    maven {
-        name = 'GTNH Maven'
-        url = uri('https://nexus.gtnewhorizons.com/repository/public/')
-    }
-}
-
-// Dependencies
-dependencies {
-    // Jabel for Java 17 syntax with Java 8 target
-    annotationProcessor('com.github.bsideup.jabel:jabel-javac-plugin:0.4.2')
-    compileOnly('com.github.bsideup.jabel:jabel-javac-plugin:0.4.2')
-    annotationProcessor('net.java.dev.jna:jna-platform:5.13.0')
-    patchedMinecraft('me.eigenraven.java8unsupported:java-8-unsupported-shim:1.0.0')
-    
-    // Mixins
-    String mixin = modUtils.enableMixins('zone.rong:mixinbooter:10.7', 'mixins.machineryassembler.refmap.json')
-    api(mixin) { transitive = false }
-    annotationProcessor('org.ow2.asm:asm-debug-all:5.2')
-    annotationProcessor('com.google.guava:guava:30.0-jre')
-    annotationProcessor('com.google.code.gson:gson:2.8.9')
-    annotationProcessor(mixin) { transitive = false }
-    
-    // MMCE
-    implementation(rfg.deobf('curse.maven:modularmachinery-community-edition-817377:7372951'))
-    
-    // JEI
-    implementation(rfg.deobf('curse.maven:jei-238222:5846804'))
-}
-
-// IDE configuration
-idea {
-    module {
-        inheritOutputDirs = true
-    }
-}
-
-// CurseForge publishing
-// Configure via environment variables or gradle properties:
-//   -PcurseforgeProjectId=... or CURSEFORGE_PROJECT_ID env
-//   -PcurseforgeReleaseType=... or CURSEFORGE_RELEASE_TYPE env (default: release)
-//   -PcurseforgeChangelog=... or CURSEFORGE_CHANGELOG env (default: reads CHANGELOG.md)
-// Run with: ./gradlew publishCurseForge
-def cfToken = System.getenv('CURSEFORGE_TOKEN')
-def cfProjectId = project.findProperty('curseforgeProjectId') ?: System.getenv('CURSEFORGE_PROJECT_ID')
-def cfReleaseType = project.findProperty('curseforgeReleaseType') ?: System.getenv('CURSEFORGE_RELEASE_TYPE') ?: 'release'
-def cfChangelog = project.findProperty('curseforgeChangelog') ?: System.getenv('CURSEFORGE_CHANGELOG') ?: ''
-
-if (cfToken && cfProjectId) {
-    tasks.register('publishCurseForge', net.darkhax.curseforgegradle.TaskPublishCurseForge) {
-        dependsOn tasks.reobfJar
-
-        apiToken = cfToken
-        
-        def mainFile = upload(cfProjectId, tasks.reobfJar.archiveFile)
-        mainFile.displayName = "Machinery Assembler ${project.version}"
-        mainFile.releaseType = cfReleaseType
-        mainFile.addGameVersion '1.12.2'
-        mainFile.addGameVersion 'Forge'
-        mainFile.addRequirement 'modularmachinery-community-edition'
-        mainFile.addRequirement 'mixinbooter'
-        mainFile.addRequirement 'crafttweaker'
-        mainFile.addOptional 'jei'
-        mainFile.changelog = cfChangelog ?: (file('CHANGELOG.md').exists() ? file('CHANGELOG.md').text : 'No changelog provided.')
     }
 }

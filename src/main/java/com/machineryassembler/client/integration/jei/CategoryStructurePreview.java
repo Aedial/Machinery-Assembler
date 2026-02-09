@@ -3,9 +3,6 @@ package com.machineryassembler.client.integration.jei;
 import javax.annotation.Nonnull;
 
 import net.minecraft.client.resources.I18n;
-import net.minecraft.util.ResourceLocation;
-
-import hellfirepvp.modularmachinery.client.gui.GuiScreenBlueprint;
 
 import mezz.jei.api.gui.IDrawable;
 import mezz.jei.api.gui.IGuiItemStackGroup;
@@ -26,13 +23,8 @@ public class CategoryStructurePreview implements IRecipeCategory<StructurePrevie
     private final String trTitle;
 
     public CategoryStructurePreview() {
-        // Use the same texture as MMCE's blueprint screen for consistency
-        ResourceLocation location = new ResourceLocation("modularmachinery", "textures/gui/guiblueprint_new.png");
-        this.background = MAJEIPlugin.jeiHelpers.getGuiHelper()
-            .drawableBuilder(location, 0, 0, GuiScreenBlueprint.X_SIZE, GuiScreenBlueprint.Y_SIZE)
-            .addPadding(0, 0, 0, 0)
-            .build();
-        this.trTitle = I18n.format("jei.category." + MachineryAssembler.MODID + ".structure_preview");
+        this.background = new DynamicBackgroundDrawable();
+        this.trTitle = I18n.format("jei.category.machineryassembler.structure_preview");
     }
 
     @Nonnull
@@ -66,11 +58,33 @@ public class CategoryStructurePreview implements IRecipeCategory<StructurePrevie
         // Hidden output slot
         group.init(0, false, -999999, -999999);
 
-        // Hidden input slots for ingredients
-        for (int i = 0; i < Math.min(ingredients.getInputs(VanillaTypes.ITEM).size(), 81); i++) {
-            group.init(1 + i, true, -999999, -999999);
+        // Position first 18 slots visible (2 rows of 9), rest hidden
+        // Y_SIZE is now 232, slots start at Y_SIZE - 44 = 188
+        int slotsBaseY = 232 - 44;
+        int slotsStartX = 7;
+        int slotSize = 18;
+        int slotsPerRow = 9;
+        int slotRows = 2;
+        int slotsPerPage = slotsPerRow * slotRows;
+        int totalSlots = Math.min(ingredients.getInputs(VanillaTypes.ITEM).size(), 81);
+
+        for (int i = 0; i < totalSlots; i++) {
+            if (i < slotsPerPage) {
+                // Visible on first page - arrange in 2 rows
+                int row = i / slotsPerRow;
+                int col = i % slotsPerRow;
+                int slotX = slotsStartX + col * slotSize;
+                int slotY = slotsBaseY + row * slotSize;
+                group.init(1 + i, true, slotX, slotY);
+            } else {
+                // Hidden
+                group.init(1 + i, true, -999999, -999999);
+            }
         }
 
         group.set(ingredients);
+
+        // Pass the slot group and ingredients to the wrapper for dynamic repositioning
+        recipeWrapper.setSlotGroup(group, totalSlots, ingredients);
     }
 }
