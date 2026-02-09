@@ -9,6 +9,27 @@ commands.ma-reload.usage=/ma-reload - 重载所有结构定义
 # Messages
 message.machineryassembler.preview_cancelled=已取消预览。
 
+# GUI Messages
+gui.machineryassembler.preview.place=已开始预览。使用方向键移动，右击固定位置。
+gui.machineryassembler.preview.fixed=已固定预览位置。
+gui.machineryassembler.preview.complete=结构完成！
+
+# GUI Labels
+gui.machineryassembler.mode.3d=3D视图
+gui.machineryassembler.mode.2d=2D视图
+gui.machineryassembler.layer=片层 %d/%d
+gui.machineryassembler.hint.drag=拖拽以旋转
+gui.machineryassembler.hint.scroll=滚轮以缩放
+gui.machineryassembler.hint.updown=滚轮以更改片层
+gui.machineryassembler.button.preview=世界中预览
+gui.machineryassembler.button.mode=2D/3D
+
+# JEI Button Tooltips
+gui.machineryassembler.button.layer.to2d=切换至2D片层视图
+gui.machineryassembler.button.layer.to3d=切换至3D视图
+gui.machineryassembler.button.world_preview=放置世界中预览
+gui.machineryassembler.button.reset=重置视图
+
 # Keybinds
 key.categories.machineryassembler=机械组装器（Machinery Assembler）
 key.machineryassembler.cancel_preview=取消预览
@@ -18,3 +39,42 @@ key.machineryassembler.move_left=向左移动预览
 key.machineryassembler.move_right=向右移动预览
 key.machineryassembler.move_up=向上移动预览
 key.machineryassembler.move_down=向下移动预览
+
+# Assembler's Baton Item
+item.machineryassembler.assembler_baton.name=组装师的指挥棒
+item.machineryassembler.assembler_baton.selected=已选择：%s
+item.machineryassembler.assembler_baton.clear_hint=按Escape以清除选择
+item.machineryassembler.assembler_baton.no_selection=右击选择一个结构
+item.machineryassembler.assembler_baton.focus=焦点方块：%s
+
+# Baton GUI
+gui.machineryassembler.baton.no_selection=从列表中选择一个结构
+gui.machineryassembler.baton.double_click_hint=双击选择以用于自动建造
+gui.machineryassembler.baton.i18n.on=显示：本地化名称
+gui.machineryassembler.baton.i18n.off=显示：注册ID
+
+# Baton Messages
+message.machineryassembler.baton.selected=结构已选择。右击进行建造。
+message.machineryassembler.baton.invalid_structure=所选结构已不存在。
+message.machineryassembler.baton.fix_first=请先固定预览位置（预览浮动时右击）。
+message.machineryassembler.baton.building=正在发送自动建造请求……
+message.machineryassembler.baton.obstructed=建造被阻挡：检测到%d处阻碍（已用红色/橙色高亮）。
+message.machineryassembler.baton.missing_blocks=总计缺少%d个方块。
+message.machineryassembler.baton.missing_entry=  - %s x%d
+message.machineryassembler.baton.missing_more=  ……以及%d种类型
+message.machineryassembler.baton.missing_aborted=建造已中止：方块不足（部分建造已被禁用）。
+message.machineryassembler.baton.build_complete=自动建造完成！已放置%d个方块。
+message.machineryassembler.baton.partial_build=部分建造完成：已放置%d个方块，失败了%d个。
+message.machineryassembler.baton.build_failed=自动建造失败。
+
+# Config
+config.machineryassembler.consumeBlocksInCreative=创造模式下消耗方块
+config.machineryassembler.consumeBlocksInCreative.tooltip=创造模式玩家在自动建造时是否消耗方块。
+config.machineryassembler.allowPartialBuilds=允许部分建造
+config.machineryassembler.allowPartialBuilds.tooltip=当缺失部分方块时，是否允许进行部分建造。若为false，方块缺失时将中止自动建造。
+config.machineryassembler.blocksPerTick=每刻放置方块数
+config.machineryassembler.blocksPerTick.tooltip=自动建造期间每刻放置的方块数量。允许小数（例如，0.5表示每2刻放置一个方块）。数值越高建造越快，但可能导致卡顿。
+config.machineryassembler.maxBuildDistance=最大建造距离
+config.machineryassembler.maxBuildDistance.tooltip=自动建造距离玩家的最大距离。设置为0表示无限制。
+config.machineryassembler.detailedMissingReport=详细缺失方块报告
+config.machineryassembler.detailedMissingReport.tooltip=是否在聊天栏中报告每种缺失的方块类型。如果为false，则仅显示总计数量。
