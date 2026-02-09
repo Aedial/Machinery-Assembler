@@ -1,0 +1,29 @@
+{
+    "id": "example_structure",
+    "messages": [
+        {
+            "key": "machineryassembler.message.example",
+            "level": "info",
+            "item": "minecraft:diamond@0*5"
+        },
+        {
+            "key": "machineryassembler.message.warning",
+            "level": "warning"
+        }
+    ],
+    "inputs": {
+        "s": "minecraft:stone",
+        "c": "minecraft:cobblestone",
+        "g": "minecraft:glass"
+    },
+    "shape": [
+        [
+            "_g_",
+            "___"
+        ],
+        [
+            "csc",
+            "_s_"
+        ]
+    ]
+}

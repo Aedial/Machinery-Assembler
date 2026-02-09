@@ -1,80 +1,92 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 Machinery Assembler Contributors
+
 package com.machineryassembler.client;
 
 import org.lwjgl.input.Keyboard;
+import org.lwjgl.input.Mouse;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiIngameMenu;
 import net.minecraft.client.settings.KeyBinding;
+import net.minecraft.item.ItemStack;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.EnumFacing;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.text.TextComponentTranslation;
+import net.minecraftforge.client.event.GuiOpenEvent;
 import net.minecraftforge.client.settings.KeyConflictContext;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
+import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.InputEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
-
-import hellfirepvp.modularmachinery.client.ClientProxy;
-import hellfirepvp.modularmachinery.client.util.BlockArrayPreviewRenderHelper;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
 import com.machineryassembler.MachineryAssembler;
-import com.machineryassembler.mixin.AccessorBlockArrayPreviewRenderHelper;
+import com.machineryassembler.client.autobuild.AutobuildHandler;
+import com.machineryassembler.client.render.InWorldPreviewRenderer;
+import com.machineryassembler.common.item.ItemAssemblerBaton;
 
 
 /**
  * Handles keybindings for controlling the in-world structure preview.
  * - Escape: Cancel the current preview
  * - Arrow keys: Move the preview relative to player facing direction
- * - Shift + Scroll: Rotate the preview (TODO)
+ * - Page Up/Down: Move preview up/down
+ * - Right-click: Fix the preview at the current position
+ * - Shift + scroll wheel: Rotate the preview
  */
+@SideOnly(Side.CLIENT)
 public class PreviewKeybindHandler {
 
     private static final String KEYBIND_CATEGORY = "key.categories." + MachineryAssembler.MODID;
 
     public static final KeyBinding KEY_CANCEL_PREVIEW = new KeyBinding(
-        "key." + MachineryAssembler.MODID + ".cancel_preview",
+        "key.machineryassembler.cancel_preview",
         KeyConflictContext.IN_GAME,
         Keyboard.KEY_ESCAPE,
         KEYBIND_CATEGORY
     );
 
     public static final KeyBinding KEY_MOVE_FORWARD = new KeyBinding(
-        "key." + MachineryAssembler.MODID + ".move_forward",
+        "key.machineryassembler.move_forward",
         KeyConflictContext.IN_GAME,
         Keyboard.KEY_UP,
         KEYBIND_CATEGORY
     );
 
     public static final KeyBinding KEY_MOVE_BACKWARD = new KeyBinding(
-        "key." + MachineryAssembler.MODID + ".move_backward",
+        "key.machineryassembler.move_backward",
         KeyConflictContext.IN_GAME,
         Keyboard.KEY_DOWN,
         KEYBIND_CATEGORY
     );
 
     public static final KeyBinding KEY_MOVE_LEFT = new KeyBinding(
-        "key." + MachineryAssembler.MODID + ".move_left",
+        "key.machineryassembler.move_left",
         KeyConflictContext.IN_GAME,
         Keyboard.KEY_LEFT,
         KEYBIND_CATEGORY
     );
 
     public static final KeyBinding KEY_MOVE_RIGHT = new KeyBinding(
-        "key." + MachineryAssembler.MODID + ".move_right",
+        "key.machineryassembler.move_right",
         KeyConflictContext.IN_GAME,
         Keyboard.KEY_RIGHT,
         KEYBIND_CATEGORY
     );
 
     public static final KeyBinding KEY_MOVE_UP = new KeyBinding(
-        "key." + MachineryAssembler.MODID + ".move_up",
+        "key.machineryassembler.move_up",
         KeyConflictContext.IN_GAME,
         Keyboard.KEY_PRIOR, // Page Up
         KEYBIND_CATEGORY
     );
 
     public static final KeyBinding KEY_MOVE_DOWN = new KeyBinding(
-        "key." + MachineryAssembler.MODID + ".move_down",
+        "key.machineryassembler.move_down",
         KeyConflictContext.IN_GAME,
         Keyboard.KEY_NEXT, // Page Down
         KEYBIND_CATEGORY
@@ -98,32 +110,32 @@ public class PreviewKeybindHandler {
      * Checks if there is an active in-world preview that can be controlled.
      */
     private static boolean hasActivePreview() {
-        BlockArrayPreviewRenderHelper helper = ClientProxy.renderHelper;
-        if (helper == null) return false;
-
-        // Check if there's an active context (preview in progress)
-        if (helper.getContext() != null) return true;
-
-        // Also check if we have an attached position for placed previews
-        AccessorBlockArrayPreviewRenderHelper accessor = (AccessorBlockArrayPreviewRenderHelper) helper;
-
-        return accessor.getAttachedPosition() != null;
+        return ClientProxy.previewRenderer.hasActivePreview();
     }
 
     /**
      * Cancels the current in-world preview.
+     * Also clears the baton selection if player is holding the baton.
      */
     private static void cancelPreview() {
-        BlockArrayPreviewRenderHelper helper = ClientProxy.renderHelper;
-        if (helper == null) return;
+        ClientProxy.previewRenderer.cancelPreview();
 
-        helper.unloadWorld();
-        // Offset is reset automatically by the mixin
+        // Also clear baton selection if holding the baton
+        EntityPlayer player = Minecraft.getMinecraft().player;
+        if (player != null) {
+            ItemStack heldItem = player.getHeldItemMainhand();
+            if (heldItem.getItem() instanceof ItemAssemblerBaton) {
+                AutobuildHandler.clearSelection(heldItem);
+                return;
+            }
 
-        if (Minecraft.getMinecraft().player != null) {
-            Minecraft.getMinecraft().player.sendMessage(
-                new TextComponentTranslation("message." + MachineryAssembler.MODID + ".preview_cancelled")
-            );
+            heldItem = player.getHeldItemOffhand();
+            if (heldItem.getItem() instanceof ItemAssemblerBaton) {
+                AutobuildHandler.clearSelection(heldItem);
+                return;
+            }
+
+            player.sendMessage(new TextComponentTranslation("message.machineryassembler.preview_cancelled"));
         }
     }
 
@@ -133,9 +145,7 @@ public class PreviewKeybindHandler {
      */
     private static EnumFacing getPlayerHorizontalFacing() {
         EntityPlayer player = Minecraft.getMinecraft().player;
-        if (player == null) {
-            return EnumFacing.NORTH;
-        }
+        if (player == null) return EnumFacing.NORTH;
 
         // Player yaw: 0 = south, 90 = west, 180/-180 = north, -90 = east
         float yaw = MathHelper.wrapDegrees(player.rotationYaw);
@@ -152,40 +162,74 @@ public class PreviewKeybindHandler {
     }
 
     /**
-     * Gets the direction to move based on player facing and relative direction.
+     * Moves the current in-world preview in the specified relative direction.
      */
-    private static EnumFacing getRelativeDirection(EnumFacing playerFacing, RelativeDirection relative) {
-        return switch (relative) {
-            case FORWARD -> playerFacing;
-            case BACKWARD -> playerFacing.getOpposite();
-            case LEFT -> playerFacing.rotateYCCW();
-            case RIGHT -> playerFacing.rotateY();
-            case UP -> EnumFacing.UP;
-            case DOWN -> EnumFacing.DOWN;
-        };
+    private static void movePreview(EnumFacing playerFacing, RelativeDirection relative) {
+        InWorldPreviewRenderer renderer = ClientProxy.previewRenderer;
+
+        int forward = 0, right = 0, up = 0;
+
+        switch (relative) {
+            case FORWARD:
+                forward = 1;
+                break;
+            case BACKWARD:
+                forward = -1;
+                break;
+            case LEFT:
+                right = -1;
+                break;
+            case RIGHT:
+                right = 1;
+                break;
+            case UP:
+                up = 1;
+                break;
+            case DOWN:
+                up = -1;
+                break;
+        }
+
+        renderer.moveRelative(playerFacing, forward, right, up);
     }
 
     /**
-     * Moves the current in-world preview in the specified direction.
-     * Works for both floating (unplaced) and placed previews.
+     * Handle shift+scroll wheel to rotate the preview.
+     * Note: Right-click to fix preview is now handled by ItemAssemblerBaton directly.
      */
-    private static void movePreview(EnumFacing direction) {
-        BlockArrayPreviewRenderHelper helper = ClientProxy.renderHelper;
-        if (helper == null) return;
+    @SubscribeEvent
+    public void onMouseInput(InputEvent.MouseInputEvent event) {
+        if (!hasActivePreview()) return;
 
-        AccessorBlockArrayPreviewRenderHelper accessor = (AccessorBlockArrayPreviewRenderHelper) helper;
-        BlockPos attachedPos = accessor.getAttachedPosition();
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.currentScreen != null) return;
 
-        if (attachedPos != null) {
-            // Preview is placed/anchored - move the attached position directly
-            BlockPos newPos = attachedPos.offset(direction);
-            accessor.setAttachedPosition(newPos);
-        } else {
-            // Preview is floating - use our offset system
-            BlockPos currentOffset = PreviewOffsetHolder.getPreviewOffset();
-            BlockPos newOffset = currentOffset.offset(direction);
-            PreviewOffsetHolder.setPreviewOffset(newOffset);
+        // Shift + scroll wheel to rotate
+        int scroll = Mouse.getDWheel();
+        if (scroll != 0 && (Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT))) {
+            InWorldPreviewRenderer renderer = ClientProxy.previewRenderer;
+
+            if (scroll > 0) {
+                renderer.rotateCW();
+            } else {
+                renderer.rotateCCW();
+            }
         }
+    }
+
+    /**
+     * Intercept the pause menu opening when Escape is pressed while a preview is active.
+     * In MC 1.12, Minecraft processes Escape internally and opens GuiIngameMenu BEFORE
+     * KeyInputEvent fires, so we must intercept at the GuiOpenEvent stage instead.
+     */
+    @SubscribeEvent(priority = EventPriority.HIGH)
+    public void onGuiOpen(GuiOpenEvent event) {
+        if (!(event.getGui() instanceof GuiIngameMenu)) return;
+        if (!hasActivePreview()) return;
+
+        // Cancel the pause menu and cancel the preview instead
+        event.setCanceled(true);
+        cancelPreview();
     }
 
     @SubscribeEvent
@@ -201,75 +245,45 @@ public class PreviewKeybindHandler {
 
         if (!hasActivePreview()) return;
 
-        // Check cancel key (Escape)
-        if (KEY_CANCEL_PREVIEW.isKeyDown()) {
-            cancelPreview();
-            return;
-        }
-
         // Process movement keys with cooldown
         if (moveCooldown > 0) return;
 
         EnumFacing playerFacing = getPlayerHorizontalFacing();
 
         if (KEY_MOVE_FORWARD.isKeyDown()) {
-            movePreview(getRelativeDirection(playerFacing, RelativeDirection.FORWARD));
+            movePreview(playerFacing, RelativeDirection.FORWARD);
             moveCooldown = MOVE_COOLDOWN_TICKS;
             return;
         }
 
         if (KEY_MOVE_BACKWARD.isKeyDown()) {
-            movePreview(getRelativeDirection(playerFacing, RelativeDirection.BACKWARD));
+            movePreview(playerFacing, RelativeDirection.BACKWARD);
             moveCooldown = MOVE_COOLDOWN_TICKS;
             return;
         }
 
         if (KEY_MOVE_LEFT.isKeyDown()) {
-            movePreview(getRelativeDirection(playerFacing, RelativeDirection.LEFT));
+            movePreview(playerFacing, RelativeDirection.LEFT);
             moveCooldown = MOVE_COOLDOWN_TICKS;
             return;
         }
 
         if (KEY_MOVE_RIGHT.isKeyDown()) {
-            movePreview(getRelativeDirection(playerFacing, RelativeDirection.RIGHT));
+            movePreview(playerFacing, RelativeDirection.RIGHT);
             moveCooldown = MOVE_COOLDOWN_TICKS;
             return;
         }
 
         if (KEY_MOVE_UP.isKeyDown()) {
-            movePreview(EnumFacing.UP);
+            movePreview(playerFacing, RelativeDirection.UP);
             moveCooldown = MOVE_COOLDOWN_TICKS;
             return;
         }
 
         if (KEY_MOVE_DOWN.isKeyDown()) {
-            movePreview(EnumFacing.DOWN);
+            movePreview(playerFacing, RelativeDirection.DOWN);
             moveCooldown = MOVE_COOLDOWN_TICKS;
         }
-    }
-
-    /**
-     * Handles mouse scroll events for rotating the preview when shift is held.
-     */
-    @SubscribeEvent
-    public void onMouseInput(net.minecraftforge.client.event.MouseEvent event) {
-        // Only process scroll events
-        int dWheel = event.getDwheel();
-        if (dWheel == 0) return;
-
-        // Only process when shift is held
-        if (!Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) && !Keyboard.isKeyDown(Keyboard.KEY_RSHIFT)) return;
-
-        // Don't process when a GUI is open
-        Minecraft mc = Minecraft.getMinecraft();
-        if (mc.currentScreen != null) return;
-
-        if (!hasActivePreview()) return;
-
-        // TODO: Implement rotation when we have access to the pattern rotation
-        // For now, rotation is not implemented - would need to modify the matchArray
-        // which requires more complex mixin work
-        MachineryAssembler.LOGGER.debug("Shift+scroll detected: {} (rotation not yet implemented)", dWheel > 0 ? "up" : "down");
     }
 
     private enum RelativeDirection {
