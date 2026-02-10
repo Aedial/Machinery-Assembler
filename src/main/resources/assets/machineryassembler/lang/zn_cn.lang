@@ -30,6 +30,13 @@ gui.machineryassembler.button.layer.to3d=切换至3D视图
 gui.machineryassembler.button.world_preview=放置世界中预览
 gui.machineryassembler.button.reset=重置视图
 
+# JEI Output Slot
+gui.machineryassembler.output=输出
+
+# Example Structure Messages (for demonstration)
+machineryassembler.message.example=这是一条示例信息。向结构扔出钻石以使其运作！
+machineryassembler.message.warning=这是一条警告信息！务必小心，该结构即将爆炸！3... 2... 1...
+
 # Keybinds
 key.categories.machineryassembler=机械组装器（Machinery Assembler）
 key.machineryassembler.cancel_preview=取消预览
