@@ -1,5 +1,6 @@
 {
     "id": "example_structure",
+    "output": "minecraft:diamond*3",
     "messages": [
         {
             "key": "machineryassembler.message.example",

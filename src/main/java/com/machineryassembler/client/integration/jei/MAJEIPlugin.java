@@ -86,6 +86,9 @@ public class MAJEIPlugin implements IModPlugin {
     public void register(IModRegistry registry) {
         jeiHelpers = registry.getJeiHelpers();
 
+        // Register global GUI handler for message panel exclusion areas
+        registry.addGlobalGuiHandlers(new MessagePanelGuiHandler());
+
         // Register structure preview wrappers
         for (Structure structure : StructureRegistry.getRegistry()) {
             StructurePreviewWrapper wrapper = new StructurePreviewWrapper(structure);

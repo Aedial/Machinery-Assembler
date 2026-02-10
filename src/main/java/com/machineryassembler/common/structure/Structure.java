@@ -46,6 +46,8 @@ public class Structure {
 
     protected boolean registerAsItem = false;
     protected List<StructureMessage> messages = new ArrayList<>();
+    @Nullable
+    protected StructureOutput output = null;
 
     public Structure(String registryName) {
         this.registryName = new ResourceLocation(MachineryAssembler.MODID, registryName);
@@ -88,10 +90,20 @@ public class Structure {
         this.messages = messages;
     }
 
+    @Nullable
+    public StructureOutput getOutput() {
+        return output;
+    }
+
+    public void setOutput(@Nullable StructureOutput output) {
+        this.output = output;
+    }
+
     public void mergeFrom(Structure another) {
         pattern.overwrite(another.pattern);
         registerAsItem = another.registerAsItem;
         messages = another.messages;
+        output = another.output;
     }
 
     @Override
@@ -114,6 +126,7 @@ public class Structure {
      * Supports the following format:
      * - id: String for lang key, JEI, item registration
      * - register-as-item: Optional boolean
+     * - output: Optional output item "id@meta*count" or {id, meta?, count?, nbt?}
      * - messages: Optional array of {key, level, item?}
      * - inputs: Mapping of characters to "id@meta" or {id, meta?, nbt?}
      * - shape: Array[y][z] where each z is a string representing x-axis blocks
@@ -138,6 +151,12 @@ public class Structure {
             if (root.has("messages")) {
                 List<StructureMessage> messages = parseMessages(JsonUtils.getJsonArray(root, "messages"));
                 structure.setMessages(messages);
+            }
+
+            // Optional output
+            if (root.has("output")) {
+                StructureOutput output = parseOutput(root.get("output"));
+                structure.setOutput(output);
             }
 
             // Required inputs
@@ -173,6 +192,50 @@ public class Structure {
             }
 
             return messages;
+        }
+
+        private StructureOutput parseOutput(JsonElement value) throws JsonParseException {
+            if (value.isJsonPrimitive() && value.getAsJsonPrimitive().isString()) {
+                // Simple string: "modid:item" or "modid:item@meta" or "modid:item@meta*count"
+                return StructureOutput.fromString(value.getAsString());
+            }
+
+            if (value.isJsonObject()) {
+                // Object with id, optional meta, count, nbt
+                JsonObject obj = value.getAsJsonObject();
+                String id = JsonUtils.getString(obj, "id");
+                int meta = 0;
+                int count = 1;
+                NBTTagCompound nbt = null;
+
+                // Parse inline meta from id
+                int metaIndex = id.indexOf('@');
+                if (metaIndex != -1 && metaIndex < id.length() - 1) {
+                    try {
+                        meta = Integer.parseInt(id.substring(metaIndex + 1));
+                    } catch (NumberFormatException e) {
+                        throw new JsonParseException("Expected metadata number after @, got: " + id.substring(metaIndex + 1), e);
+                    }
+
+                    id = id.substring(0, metaIndex);
+                }
+
+                // Meta from object property overrides inline
+                if (obj.has("meta")) meta = JsonUtils.getInt(obj, "meta");
+                if (obj.has("count")) count = JsonUtils.getInt(obj, "count");
+
+                if (obj.has("nbt")) {
+                    try {
+                        nbt = NBTJsonDeserializer.deserialize(obj.get("nbt").toString());
+                    } catch (NBTException e) {
+                        throw new JsonParseException("Error parsing output NBT: " + e.getMessage(), e);
+                    }
+                }
+
+                return new StructureOutput(id, meta, count, nbt);
+            }
+
+            throw new JsonParseException("Output must be a string or object!");
         }
 
         private Map<Character, BlockRequirement> parseInputs(JsonObject inputsObj) throws JsonParseException {

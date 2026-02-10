@@ -55,10 +55,21 @@ public class CategoryStructurePreview implements IRecipeCategory<StructurePrevie
     public void setRecipe(IRecipeLayout recipeLayout, @Nonnull StructurePreviewWrapper recipeWrapper, IIngredients ingredients) {
         IGuiItemStackGroup group = recipeLayout.getItemStacks();
 
-        // Hidden output slot
-        group.init(0, false, -999999, -999999);
+        // Output slot at top-right of preview area (if structure has output defined)
+        // Position: X_SIZE - 7 - 18 = 175 - 18 = 157, Y = 18 (below title)
+        if (recipeWrapper.hasOutput()) {
+            int outputSlotX = 200 - 7 - 18;  // Right side with margin
+            int outputSlotY = 18;  // Below title area
+            group.init(0, false, outputSlotX, outputSlotY);
+        } else {
+            // Hidden output slot if no output
+            group.init(0, false, -999999, -999999);
+        }
 
-        // Position first 18 slots visible (2 rows of 9), rest hidden
+        // Get number of regular ingredient slots (message items are handled manually)
+        int ingredientSlotCount = ingredients.getInputs(VanillaTypes.ITEM).size();
+
+        // Position first 18 ingredient slots visible (2 rows of 9), rest hidden
         // Y_SIZE is now 232, slots start at Y_SIZE - 44 = 188
         int slotsBaseY = 232 - 44;
         int slotsStartX = 7;
@@ -66,9 +77,9 @@ public class CategoryStructurePreview implements IRecipeCategory<StructurePrevie
         int slotsPerRow = 9;
         int slotRows = 2;
         int slotsPerPage = slotsPerRow * slotRows;
-        int totalSlots = Math.min(ingredients.getInputs(VanillaTypes.ITEM).size(), 81);
+        int regularSlots = Math.min(ingredientSlotCount, 81);
 
-        for (int i = 0; i < totalSlots; i++) {
+        for (int i = 0; i < regularSlots; i++) {
             if (i < slotsPerPage) {
                 // Visible on first page - arrange in 2 rows
                 int row = i / slotsPerRow;
@@ -85,6 +96,6 @@ public class CategoryStructurePreview implements IRecipeCategory<StructurePrevie
         group.set(ingredients);
 
         // Pass the slot group and ingredients to the wrapper for dynamic repositioning
-        recipeWrapper.setSlotGroup(group, totalSlots, ingredients);
+        recipeWrapper.setSlotGroup(group, regularSlots, ingredients);
     }
 }

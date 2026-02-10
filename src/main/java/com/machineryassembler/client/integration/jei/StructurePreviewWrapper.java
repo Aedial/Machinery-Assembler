@@ -6,11 +6,14 @@
 package com.machineryassembler.client.integration.jei;
 
 import javax.annotation.Nonnull;
+import java.awt.Rectangle;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
 import org.lwjgl.input.Mouse;
+import org.lwjgl.opengl.GL11;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
@@ -19,14 +22,17 @@ import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.RenderItem;
 import net.minecraft.client.resources.I18n;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
+import net.minecraftforge.fml.common.registry.ForgeRegistries;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 import mezz.jei.api.gui.IGuiItemStackGroup;
 import mezz.jei.api.ingredients.IIngredients;
 import mezz.jei.api.ingredients.VanillaTypes;
+import mezz.jei.api.recipe.IFocus;
 import mezz.jei.api.recipe.IRecipeWrapper;
 
 import com.machineryassembler.MachineryAssembler;
@@ -34,6 +40,8 @@ import com.machineryassembler.client.ClientProxy;
 import com.machineryassembler.client.render.StructureRenderContext;
 import com.machineryassembler.client.render.StructureRenderHelper;
 import com.machineryassembler.common.structure.Structure;
+import com.machineryassembler.common.structure.StructureMessage;
+import com.machineryassembler.common.structure.StructureOutput;
 import com.machineryassembler.common.structure.StructurePattern;
 
 
@@ -51,6 +59,22 @@ public class StructurePreviewWrapper implements IRecipeWrapper {
     private static final ResourceLocation ARROW_DOWN = new ResourceLocation(MachineryAssembler.MODID, "textures/gui/arrow_down.png");
     private static final ResourceLocation ARROW_DOWN_HOVERED = new ResourceLocation(MachineryAssembler.MODID, "textures/gui/arrow_down_hovered.png");
     private static final ResourceLocation ARROW_DOWN_DISABLED = new ResourceLocation(MachineryAssembler.MODID, "textures/gui/arrow_down_disabled.png");
+
+    // Message level icon textures
+    private static final ResourceLocation ICON_INFO = new ResourceLocation(MachineryAssembler.MODID, "textures/gui/icon_info.png");
+    private static final ResourceLocation ICON_WARNING = new ResourceLocation(MachineryAssembler.MODID, "textures/gui/icon_warning.png");
+    private static final ResourceLocation ICON_ERROR = new ResourceLocation(MachineryAssembler.MODID, "textures/gui/icon_error.png");
+
+    // Message panel dimensions
+    private static final int MESSAGE_PANEL_MAX_WIDTH = 240;  // Maximum width when plenty of space available
+    private static final int MESSAGE_PANEL_MIN_WIDTH = 80;   // Minimum width to keep text readable
+    private static final int MESSAGE_PANEL_MIN_MARGIN = 8;   // Minimum margin between panel and screen edge
+    private static final int MESSAGE_PANEL_PADDING = 4;
+    private static final int MESSAGE_PANEL_GAP = 4;   // Gap between message windows and JEI border
+    private static final int MESSAGE_PANEL_JEI_BORDER = 7; // JEI's own border extends this far left of recipe X=0
+    private static final int MESSAGE_WINDOW_GAP = 2;   // Gap between individual message windows
+    private static final int MESSAGE_ICON_SIZE = 10;
+    private static final int MESSAGE_LINE_HEIGHT = 10;
 
     // Arrow button dimensions
     private static final int ARROW_SIZE = 8;
@@ -97,6 +121,32 @@ public class StructurePreviewWrapper implements IRecipeWrapper {
     private int totalSlots = 0;
     private int lastSlotPage = 0;
 
+    // Message item slots - tracked separately for positioning
+    private int messageItemSlotStartIndex = 0;
+    private List<ItemStack> messageItemStacks = new ArrayList<>();
+
+    // Screen-space rectangles of the currently-visible message windows, for JEI exclusion areas.
+    // Updated each frame in drawInfo(); empty when no messages are visible.
+    private static volatile List<Rectangle> activeMessagePanelRects = new ArrayList<>();
+
+    // Message item slot positions (recipe-relative coordinates) for tooltip/click handling
+    // Index corresponds to messageItemStacks index (messages with empty stacks have null entries)
+    private List<Rectangle> messageItemSlotRects = new ArrayList<>();
+
+    // Currently hovered message item index (-1 if none)
+    private int hoveredMessageItemIndex = -1;
+
+    // Current calculated panel width (updated each frame in drawMessagePanel)
+    private int currentPanelWidth = MESSAGE_PANEL_MAX_WIDTH;
+
+    /**
+     * Returns the screen-space rectangles of the active message windows.
+     * Used by the JEI global GUI handler to report exclusion areas.
+     */
+    public static List<Rectangle> getActiveMessagePanelRects() {
+        return activeMessagePanelRects;
+    }
+
     public StructurePreviewWrapper(Structure structure) {
         this.structure = structure;
         this.context = StructureRenderContext.createContext(structure);
@@ -134,15 +184,80 @@ public class StructurePreviewWrapper implements IRecipeWrapper {
         if (maxSlotPages < 1) maxSlotPages = 1;
         if (slotPage >= maxSlotPages) slotPage = maxSlotPages - 1;
 
-        // No outputs for structure preview (we don't have blueprints)
-        List<ItemStack> outputList = new ArrayList<>();
+        // Build message item stacks from messages that have items
+        messageItemStacks.clear();
+        List<StructureMessage> messages = structure.getMessages();
+        if (messages != null) {
+            for (StructureMessage message : messages) {
+                ItemStack stack = getMessageItemStack(message);
+                messageItemStacks.add(stack); // Add even if empty to maintain index alignment
+            }
+        }
 
-        ingredients.setInputLists(VanillaTypes.ITEM, ingredientLists);
+        messageItemSlotStartIndex = ingredientLists.size();
+
+        List<List<ItemStack>> allInputs = new ArrayList<>(ingredientLists);
+
+        // Output item from structure definition
+        List<ItemStack> outputList = new ArrayList<>();
+        StructureOutput output = structure.getOutput();
+        if (output != null && output.isValid()) outputList.add(output.getItemStack());
+
+        ingredients.setInputLists(VanillaTypes.ITEM, allInputs);
         ingredients.setOutputs(VanillaTypes.ITEM, outputList);
+    }
+
+    /**
+     * Gets the ItemStack for a message's item field.
+     */
+    private ItemStack getMessageItemStack(StructureMessage message) {
+        String itemId = message.getItemId();
+        if (itemId == null) return ItemStack.EMPTY;
+
+        Item item = ForgeRegistries.ITEMS.getValue(new ResourceLocation(itemId));
+        if (item == null) return ItemStack.EMPTY;
+
+        return new ItemStack(item, message.getItemCount(), message.getItemMeta());
+    }
+
+    /**
+     * Checks if this structure has an output item defined.
+     */
+    public boolean hasOutput() {
+        StructureOutput output = structure.getOutput();
+        return output != null && output.isValid();
+    }
+
+    /**
+     * Gets the number of message item slots needed.
+     */
+    public int getMessageItemSlotCount() {
+        int count = 0;
+        for (ItemStack stack : messageItemStacks) {
+            if (!stack.isEmpty()) count++;
+        }
+        return count;
+    }
+
+    /**
+     * Gets the starting slot index for message item slots.
+     */
+    public int getMessageItemSlotStartIndex() {
+        return messageItemSlotStartIndex;
+    }
+
+    /**
+     * Gets the list of message item stacks (includes empty stacks to maintain index alignment).
+     */
+    public List<ItemStack> getMessageItemStacks() {
+        return messageItemStacks;
     }
 
     @Override
     public void drawInfo(Minecraft minecraft, int recipeWidth, int recipeHeight, int mouseX, int mouseY) {
+        // Clear the active panel rects; drawMessagePanel will populate if this recipe has messages
+        activeMessagePanelRects = new ArrayList<>();
+
         // Store dimensions for slot repositioning
         this.recipeWidth = recipeWidth;
         this.recipeHeight = recipeHeight;
@@ -210,6 +325,13 @@ public class StructurePreviewWrapper implements IRecipeWrapper {
         // Draw slot pagination arrows (always visible, grayed when disabled)
         drawSlotPagination(minecraft, mouseX, mouseY, recipeWidth, recipeHeight);
 
+        // Draw message panel on the left side (if there are messages)
+        drawMessagePanel(minecraft, recipeHeight, mouseX, mouseY);
+
+        // Draw tooltip for hovered message item LAST and at high z-level to appear above JEI slots.
+        // We can't use getTooltipStrings() because the message panel is outside JEI's recipe bounds.
+        drawMessageItemTooltip(minecraft, mouseX, mouseY);
+
         GlStateManager.color(1F, 1F, 1F, 1F);
     }
 
@@ -274,6 +396,7 @@ public class StructurePreviewWrapper implements IRecipeWrapper {
         boolean upHovered = upEnabled && isInArrowButton(mouseX, mouseY, btnSlotUpX, btnSlotUpY);
         boolean downHovered = downEnabled && isInArrowButton(mouseX, mouseY, btnSlotDownX, btnSlotDownY);
 
+        // FIXME: doesn't render
         // Draw up arrow
         ResourceLocation upTexture = upEnabled ? (upHovered ? ARROW_UP_HOVERED : ARROW_UP) : ARROW_UP_DISABLED;
         drawArrowTexture(minecraft, btnSlotUpX, btnSlotUpY, upTexture);
@@ -287,6 +410,428 @@ public class StructurePreviewWrapper implements IRecipeWrapper {
         // Draw down arrow
         ResourceLocation downTexture = downEnabled ? (downHovered ? ARROW_DOWN_HOVERED : ARROW_DOWN) : ARROW_DOWN_DISABLED;
         drawArrowTexture(minecraft, btnSlotDownX, btnSlotDownY, downTexture);
+    }
+
+    /**
+     * Draw individual message windows on the left side of the JEI window.
+     * Each message gets its own bordered window, stacking from the bottom of the GUI upward.
+     * Items are rendered manually with proper overlays and hover handling.
+     */
+    private void drawMessagePanel(Minecraft minecraft, int recipeHeight, int mouseX, int mouseY) {
+        List<StructureMessage> messages = structure.getMessages();
+        if (messages == null || messages.isEmpty()) {
+            messageItemSlotRects.clear();
+            hoveredMessageItemIndex = -1;
+            return;
+        }
+
+        FontRenderer fr = minecraft.fontRenderer;
+        RenderItem renderItem = minecraft.getRenderItem();
+
+        // The 3D structure renderer uses raw GL11 calls with glPushAttrib/glPopAttrib,
+        // which restores GL state but desynchronizes GlStateManager's internal cache.
+        // We must forcefully reset the relevant GL state here.
+        GlStateManager.pushMatrix();
+        GL11.glDisable(GL11.GL_LIGHTING);
+        GL11.glDisable(GL11.GL_DEPTH_TEST);
+        GL11.glEnable(GL11.GL_BLEND);
+        GL11.glEnable(GL11.GL_TEXTURE_2D);
+        GlStateManager.disableLighting();
+        GlStateManager.disableDepth();
+        GlStateManager.enableBlend();
+        GlStateManager.enableTexture2D();
+        GlStateManager.color(1F, 1F, 1F, 1F);
+
+        // Get screen-space origin for exclusion area tracking and dynamic width calculation
+        java.nio.FloatBuffer modelview = org.lwjgl.BufferUtils.createFloatBuffer(16);
+        GL11.glGetFloat(GL11.GL_MODELVIEW_MATRIX, modelview);
+        int originScreenX = (int) modelview.get(12);
+        int originScreenY = (int) modelview.get(13);
+
+        // Calculate dynamic panel width based on available screen space
+        // JEI window starts at originScreenX, so available space = originScreenX - margin
+        int availableSpace = originScreenX - MESSAGE_PANEL_JEI_BORDER - MESSAGE_PANEL_GAP - MESSAGE_PANEL_MIN_MARGIN;
+        currentPanelWidth = Math.max(MESSAGE_PANEL_MIN_WIDTH, Math.min(MESSAGE_PANEL_MAX_WIDTH, availableSpace));
+
+        // Pre-calculate each message window's height (bottom-up, so we need total first)
+        int textWidth = currentPanelWidth - MESSAGE_PANEL_PADDING * 2 - MESSAGE_ICON_SIZE - 4;
+        List<MessageWindowMetrics> windowMetrics = new ArrayList<>();
+
+        for (int i = 0; i < messages.size(); i++) {
+            StructureMessage message = messages.get(i);
+            String text = I18n.format(message.getKey());
+            List<String> lines = wrapText(fr, text, textWidth);
+            int textHeight = lines.size() * MESSAGE_LINE_HEIGHT;
+
+            ItemStack itemStack = i < messageItemStacks.size() ? messageItemStacks.get(i) : ItemStack.EMPTY;
+            boolean hasItem = !itemStack.isEmpty();
+
+            // Content height: icon row (with text beside it), then item slot row below if present
+            int contentHeight = Math.max(MESSAGE_ICON_SIZE, textHeight);
+            if (hasItem) contentHeight += 20; // 18px slot + 2px gap
+
+            int windowHeight = contentHeight + MESSAGE_PANEL_PADDING * 2;
+            windowMetrics.add(new MessageWindowMetrics(lines, windowHeight, hasItem));
+        }
+
+        // JEI's own window border extends ~7px left of the recipe content area (X=0).
+        // MESSAGE_PANEL_GAP provides the visual gap between the JEI border and our windows.
+        int windowRight = -MESSAGE_PANEL_JEI_BORDER - MESSAGE_PANEL_GAP;
+        int windowLeft = windowRight - currentPanelWidth;
+
+        // Stack windows from the bottom of the recipe area upward
+        int y = recipeHeight; // Start at bottom
+        List<Rectangle> exclusionRects = new ArrayList<>();
+
+        // Reset item slot tracking
+        messageItemSlotRects = new ArrayList<>(Collections.nCopies(messageItemStacks.size(), null));
+        hoveredMessageItemIndex = -1;
+
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            StructureMessage message = messages.get(i);
+            MessageWindowMetrics metrics = windowMetrics.get(i);
+
+            // Move up by this window's height + gap between windows
+            y -= metrics.windowHeight;
+
+            // Draw window background (dark semi-transparent)
+            Gui.drawRect(windowLeft, y, windowRight, y + metrics.windowHeight, 0xE0101010);
+
+            // Draw border
+            Gui.drawRect(windowLeft, y, windowRight, y + 1, 0xFF404040);  // top
+            Gui.drawRect(windowLeft, y + metrics.windowHeight - 1, windowRight, y + metrics.windowHeight, 0xFF404040);  // bottom
+            Gui.drawRect(windowLeft, y, windowLeft + 1, y + metrics.windowHeight, 0xFF404040);  // left
+            Gui.drawRect(windowRight - 1, y, windowRight, y + metrics.windowHeight, 0xFF404040);  // right
+
+            // Draw level icon
+            int contentX = windowLeft + MESSAGE_PANEL_PADDING;
+            int contentY = y + MESSAGE_PANEL_PADDING;
+            ResourceLocation icon = getIconForLevel(message.getLevel());
+            drawIconTexture(minecraft, contentX, contentY, icon);
+
+            // Draw wrapped text lines beside the icon
+            int wrapTextX = contentX + MESSAGE_ICON_SIZE + 4;
+            int textColor = getColorForLevel(message.getLevel());
+            int lineY = contentY;
+
+            for (String line : metrics.wrappedLines) {
+                fr.drawString(line, wrapTextX, lineY + 1, textColor);
+                lineY += MESSAGE_LINE_HEIGHT;
+            }
+
+            // Draw item slot and item (if present)
+            if (metrics.hasItem && i < messageItemStacks.size()) {
+                ItemStack itemStack = messageItemStacks.get(i);
+                if (!itemStack.isEmpty()) {
+                    int slotBgX = contentX - 1; // Slot background is 18x18, item is 16x16 centered
+                    int slotBgY = contentY + Math.max(MESSAGE_ICON_SIZE, metrics.wrappedLines.size() * MESSAGE_LINE_HEIGHT) + 2 - 1;
+
+                    // Track slot position for click/tooltip handling (recipe-relative coords)
+                    messageItemSlotRects.set(i, new Rectangle(slotBgX, slotBgY, 18, 18));
+
+                    // Check if this slot is hovered
+                    boolean isHovered = mouseX >= slotBgX && mouseX < slotBgX + 18 &&
+                                        mouseY >= slotBgY && mouseY < slotBgY + 18;
+                    if (isHovered) {
+                        hoveredMessageItemIndex = i;
+                    }
+
+                    // Draw slot background
+                    drawSlotBackground(slotBgX, slotBgY);
+
+                    // Draw hover highlight if applicable
+                    if (isHovered) {
+                        GlStateManager.disableLighting();
+                        GlStateManager.disableDepth();
+                        GlStateManager.colorMask(true, true, true, false);
+                        Gui.drawRect(slotBgX + 1, slotBgY + 1, slotBgX + 17, slotBgY + 17, 0x80FFFFFF);
+                        GlStateManager.colorMask(true, true, true, true);
+                        GlStateManager.enableDepth();
+                    }
+
+                    // Render the item
+                    int itemX = slotBgX + 1;
+                    int itemY = slotBgY + 1;
+                    GlStateManager.enableDepth();
+                    RenderHelper.enableGUIStandardItemLighting();
+                    renderItem.renderItemAndEffectIntoGUI(itemStack, itemX, itemY);
+
+                    // Render item overlay (count) with shadow - mimics vanilla but uses drawStringWithShadow
+                    renderItemOverlayWithShadow(fr, itemStack, itemX, itemY);
+
+                    RenderHelper.disableStandardItemLighting();
+                    GlStateManager.disableDepth();
+                }
+            }
+
+            // Track exclusion area for this window
+            exclusionRects.add(new Rectangle(
+                originScreenX + windowLeft, originScreenY + y,
+                currentPanelWidth, metrics.windowHeight
+            ));
+
+            // Gap between windows
+            y -= MESSAGE_WINDOW_GAP;
+        }
+
+        activeMessagePanelRects = exclusionRects;
+
+        GlStateManager.enableDepth();
+        GlStateManager.popMatrix();
+    }
+
+    /**
+     * Render item overlay (count/durability) with shadowed text like standard JEI slots.
+     */
+    private void renderItemOverlayWithShadow(FontRenderer fr, ItemStack stack, int x, int y) {
+        if (stack.isEmpty()) return;
+
+        GlStateManager.disableLighting();
+        GlStateManager.disableDepth();
+        GlStateManager.disableBlend();
+
+        // Item count
+        if (stack.getCount() != 1) {
+            String countText = String.valueOf(stack.getCount());
+            // Position at bottom-right corner of slot, same as vanilla
+            int textX = x + 17 - fr.getStringWidth(countText);
+            int textY = y + 9;
+            fr.drawStringWithShadow(countText, textX, textY, 0xFFFFFF);
+        }
+
+        // Durability bar (if item is damageable and damaged)
+        if (stack.isItemDamaged()) {
+            int damage = stack.getItemDamage();
+            int maxDamage = stack.getMaxDamage();
+            int durabilityWidth = Math.round(13.0F * (1.0F - (float) damage / (float) maxDamage));
+            int durabilityColor = getDurabilityColor(damage, maxDamage);
+
+            Gui.drawRect(x + 2, y + 13, x + 15, y + 15, 0xFF000000);
+            Gui.drawRect(x + 2, y + 13, x + 2 + durabilityWidth, y + 14, durabilityColor);
+        }
+
+        GlStateManager.enableBlend();
+        GlStateManager.enableDepth();
+        GlStateManager.enableLighting();
+    }
+
+    /**
+     * Get durability bar color based on damage (green to red gradient).
+     */
+    private int getDurabilityColor(int damage, int maxDamage) {
+        float ratio = 1.0F - (float) damage / (float) maxDamage;
+        int r = (int) (255 * (1.0F - ratio));
+        int g = (int) (255 * ratio);
+        return 0xFF000000 | (r << 16) | (g << 8);
+    }
+
+    /**
+     * Get tooltip strings for hovered message items.
+     * Note: This won't be called by JEI for message items since they're outside the recipe bounds.
+     * Tooltip rendering is handled manually in drawMessageItemTooltip().
+     */
+    @Override
+    public List<String> getTooltipStrings(int mouseX, int mouseY) {
+        return Collections.emptyList();
+    }
+
+    /**
+     * Draw tooltip for hovered message item.
+     * Must be called at the end of drawInfo() with high z-level to appear above JEI slots.
+     */
+    private void drawMessageItemTooltip(Minecraft minecraft, int mouseX, int mouseY) {
+        if (hoveredMessageItemIndex < 0 || hoveredMessageItemIndex >= messageItemStacks.size()) return;
+
+        ItemStack stack = messageItemStacks.get(hoveredMessageItemIndex);
+        if (stack.isEmpty()) return;
+
+        // Get tooltip lines from the item
+        List<String> tooltip = stack.getTooltip(minecraft.player,
+            minecraft.gameSettings.advancedItemTooltips
+                ? net.minecraft.client.util.ITooltipFlag.TooltipFlags.ADVANCED
+                : net.minecraft.client.util.ITooltipFlag.TooltipFlags.NORMAL);
+
+        if (tooltip.isEmpty()) return;
+
+        // Apply rarity color to first line
+        tooltip.set(0, stack.getRarity().getColor() + tooltip.get(0));
+
+        // Render at high z-level to appear above JEI slots
+        GlStateManager.pushMatrix();
+        // FIXME: doesn't work, it still renders under JEI slots
+        GlStateManager.translate(0, 0, 400);  // High z to render above JEI's item slots (z~100-200)
+        net.minecraftforge.fml.client.config.GuiUtils.drawHoveringText(
+            tooltip, mouseX, mouseY,
+            minecraft.displayWidth, minecraft.displayHeight,
+            -1, minecraft.fontRenderer);
+        GlStateManager.popMatrix();
+    }
+
+    /**
+     * Draw a vanilla-style slot background (the dark inset square behind items).
+     */
+    private void drawSlotBackground(int x, int y) {
+        // Standard MC slot background: 18x18 with dark inset borders
+        // Outer border (dark)
+        Gui.drawRect(x, y, x + 18, y + 1, 0xFF373737);       // top
+        Gui.drawRect(x, y, x + 1, y + 18, 0xFF373737);       // left
+        // Inner border (lighter)
+        Gui.drawRect(x + 1, y + 17, x + 18, y + 18, 0xFFFFFFFF);  // bottom
+        Gui.drawRect(x + 17, y + 1, x + 18, y + 18, 0xFFFFFFFF);  // right
+        // Fill (dark gray)
+        Gui.drawRect(x + 1, y + 1, x + 17, y + 17, 0xFF8B8B8B);
+    }
+
+    /**
+     * Holds pre-calculated metrics for a single message window.
+     */
+    private static class MessageWindowMetrics {
+        final List<String> wrappedLines;
+        final int windowHeight;
+        final boolean hasItem;
+
+        MessageWindowMetrics(List<String> wrappedLines, int windowHeight, boolean hasItem) {
+            this.wrappedLines = wrappedLines;
+            this.windowHeight = windowHeight;
+            this.hasItem = hasItem;
+        }
+    }
+
+    /**
+     * Calculate the height of a single message window.
+     * Uses MESSAGE_PANEL_MAX_WIDTH as width for initial layout estimation.
+     */
+    static int calculateMessageWindowHeight(FontRenderer fr, StructureMessage message, boolean hasItem) {
+        return calculateMessageWindowHeight(fr, message, hasItem, MESSAGE_PANEL_MAX_WIDTH);
+    }
+
+    /**
+     * Calculate the height of a single message window with specified width.
+     */
+    static int calculateMessageWindowHeight(FontRenderer fr, StructureMessage message, boolean hasItem, int panelWidth) {
+        int textWidth = panelWidth - MESSAGE_PANEL_PADDING * 2 - MESSAGE_ICON_SIZE - 4;
+        String text = I18n.format(message.getKey());
+        // Approximate line count (same logic as wrapText but just counting)
+        int textHeight = fr.listFormattedStringToWidth(text, textWidth).size() * MESSAGE_LINE_HEIGHT;
+        int contentHeight = Math.max(MESSAGE_ICON_SIZE, textHeight);
+        if (hasItem) contentHeight += 20;
+
+        return contentHeight + MESSAGE_PANEL_PADDING * 2;
+    }
+
+    /**
+     * Wrap text to fit within the specified width.
+     * Breaks on spaces first, and force-breaks long words character-by-character.
+     */
+    private List<String> wrapText(FontRenderer fr, String text, int maxWidth) {
+        if (maxWidth <= 0) return Collections.singletonList(text);
+
+        List<String> lines = new ArrayList<>();
+        String[] words = text.split(" ");
+        StringBuilder currentLine = new StringBuilder();
+
+        for (String word : words) {
+            // If the word itself is too long, force-break it character by character
+            if (fr.getStringWidth(word) > maxWidth) {
+                // Flush current line first
+                if (currentLine.length() > 0) {
+                    lines.add(currentLine.toString());
+                    currentLine = new StringBuilder();
+                }
+
+                // Break the long word into fitting chunks
+                StringBuilder chunk = new StringBuilder();
+                for (int ci = 0; ci < word.length(); ci++) {
+                    char ch = word.charAt(ci);
+                    if (fr.getStringWidth(chunk.toString() + ch) > maxWidth && chunk.length() > 0) {
+                        lines.add(chunk.toString());
+                        chunk = new StringBuilder();
+                    }
+                    chunk.append(ch);
+                }
+
+                // Remaining chunk becomes the new current line
+                currentLine = chunk;
+                continue;
+            }
+
+            String testLine = currentLine.length() > 0 ? currentLine + " " + word : word;
+
+            if (fr.getStringWidth(testLine) <= maxWidth) {
+                if (currentLine.length() > 0) currentLine.append(" ");
+                currentLine.append(word);
+            } else {
+                if (currentLine.length() > 0) {
+                    lines.add(currentLine.toString());
+                }
+                currentLine = new StringBuilder(word);
+            }
+        }
+
+        if (currentLine.length() > 0) {
+            lines.add(currentLine.toString());
+        }
+
+        return lines.isEmpty() ? Collections.singletonList(text) : lines;
+    }
+
+    /**
+     * Get the icon texture for a message level.
+     */
+    private ResourceLocation getIconForLevel(StructureMessage.Level level) {
+        switch (level) {
+            case WARNING:
+                return ICON_WARNING;
+            case ERROR:
+                return ICON_ERROR;
+            case INFO:
+            default:
+                return ICON_INFO;
+        }
+    }
+
+    /**
+     * Get the text color for a message level.
+     */
+    private int getColorForLevel(StructureMessage.Level level) {
+        switch (level) {
+            case WARNING:
+                return 0xFFAA00;
+            case ERROR:
+                return 0xFF4444;
+            case INFO:
+            default:
+                return 0xAAAAFF;
+        }
+    }
+
+    /**
+     * Draw an icon texture at the specified position.
+     */
+    private void drawIconTexture(Minecraft minecraft, int x, int y, ResourceLocation texture) {
+        GlStateManager.color(1F, 1F, 1F, 1F);
+        minecraft.getTextureManager().bindTexture(texture);
+
+        GlStateManager.enableBlend();
+        GlStateManager.tryBlendFuncSeparate(
+            GlStateManager.SourceFactor.SRC_ALPHA,
+            GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
+            GlStateManager.SourceFactor.ONE,
+            GlStateManager.DestFactor.ZERO);
+
+        Gui.drawModalRectWithCustomSizedTexture(x, y, 0, 0, MESSAGE_ICON_SIZE, MESSAGE_ICON_SIZE, MESSAGE_ICON_SIZE, MESSAGE_ICON_SIZE);
+
+        GlStateManager.disableBlend();
+    }
+
+    /**
+     * Get the exclusion area rectangles for JEI.
+     * This prevents JEI from rendering tooltips/bookmarks over our message windows.
+     */
+    public List<Rectangle> getExclusionAreas(int guiLeft, int guiTop) {
+        // The real exclusion areas are tracked via activeMessagePanelRects (screen-space),
+        // populated each frame in drawMessagePanel(). Return them as-is.
+        return activeMessagePanelRects;
     }
 
     /**
@@ -404,6 +949,9 @@ public class StructurePreviewWrapper implements IRecipeWrapper {
     public boolean handleClick(Minecraft minecraft, int mouseX, int mouseY, int mouseButton) {
         // Right-click anywhere in the preview area starts the world preview
         if (mouseButton == 1) {
+            // First check if right-clicking a message item slot (show usages)
+            if (handleMessageItemClick(mouseX, mouseY, true)) return true;
+
             context.snapSamples();
             if (ClientProxy.previewRenderer.startPreview(context)) {
                 minecraft.displayGuiScreen(null);
@@ -413,6 +961,9 @@ public class StructurePreviewWrapper implements IRecipeWrapper {
         }
 
         if (mouseButton != 0) return false;
+
+        // Check message item slot clicks (left-click = show recipes)
+        if (handleMessageItemClick(mouseX, mouseY, false)) return true;
 
         // Check button clicks
         if (isInButton(mouseX, mouseY, btnLayerX, btnLayerY)) {
@@ -461,6 +1012,38 @@ public class StructurePreviewWrapper implements IRecipeWrapper {
         isDragging = true;
         lastMouseX = mouseX;
         lastMouseY = mouseY;
+
+        return false;
+    }
+
+    /**
+     * Handle click on message item slots.
+     * Called from both handleClick (for clicks inside recipe area) and JEIScrollHandler (for clicks outside).
+     * @param mouseX Mouse X position (recipe-relative)
+     * @param mouseY Mouse Y position (recipe-relative)
+     * @param showUsages If true, show usages (right-click); if false, show recipes (left-click)
+     * @return true if a message item was clicked and handled
+     */
+    public boolean handleMessageItemClick(int mouseX, int mouseY, boolean showUsages) {
+        for (int i = 0; i < messageItemSlotRects.size(); i++) {
+            Rectangle rect = messageItemSlotRects.get(i);
+            if (rect == null) continue;
+
+            if (mouseX >= rect.x && mouseX < rect.x + rect.width &&
+                mouseY >= rect.y && mouseY < rect.y + rect.height) {
+
+                ItemStack stack = messageItemStacks.get(i);
+                if (stack.isEmpty()) continue;
+
+                // Trigger JEI recipe/usage lookup
+                if (MAJEIPlugin.jeiRuntime != null) {
+                    IFocus.Mode mode = showUsages ? IFocus.Mode.OUTPUT : IFocus.Mode.INPUT;
+                    MAJEIPlugin.jeiRuntime.getRecipesGui().show(
+                        MAJEIPlugin.jeiRuntime.getRecipeRegistry().createFocus(mode, stack));
+                    return true;
+                }
+            }
+        }
 
         return false;
     }
