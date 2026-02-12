@@ -8,6 +8,14 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.2.2] - 2026-02-12
+### Fixed
+- Fix message item tooltip rendering behind JEI item slots.
+- Fix JEI exclusion area being applied to other JEI tabs.
+- Fix output slot not rendering correctly in the JEI preview.
+- Fix some conversion issues in the CM3 to MA script. AE2 cables and some rare cases of block variants are still not handled correctly, but the script should work for the majority of structutres now.
+
+
 ## [0.2.1] - 2026-02-10
 ### Added
 - Add support for info/warning/error messages defined in structure JSON, displayed at the left of the preview area. Useful for giving players important information about the structure, such as special requirements or potential dangers.

@@ -8,7 +8,9 @@ import java.util.List;
 
 import org.lwjgl.input.Mouse;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.item.ItemStack;
 import net.minecraftforge.client.event.GuiScreenEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -159,5 +161,40 @@ public class JEIScrollHandler {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /**
+     * Render deferred message item tooltips after JEI has finished rendering.
+     * This ensures tooltips appear above JEI's slot rendering.
+     */
+    @SubscribeEvent(priority = EventPriority.LOW)
+    public void onDrawScreenPost(GuiScreenEvent.DrawScreenEvent.Post event) {
+        if (!(event.getGui() instanceof RecipesGui)) return;
+
+        Object[] tooltipData = StructurePreviewWrapper.consumePendingTooltip();
+        if (tooltipData == null) return;
+
+        ItemStack stack = (ItemStack) tooltipData[0];
+        int mouseX = (int) tooltipData[1];
+        int mouseY = (int) tooltipData[2];
+
+        Minecraft mc = Minecraft.getMinecraft();
+
+        // Get tooltip lines from the item
+        List<String> tooltip = stack.getTooltip(mc.player,
+            mc.gameSettings.advancedItemTooltips
+                ? net.minecraft.client.util.ITooltipFlag.TooltipFlags.ADVANCED
+                : net.minecraft.client.util.ITooltipFlag.TooltipFlags.NORMAL);
+
+        if (tooltip.isEmpty()) return;
+
+        // Apply rarity color to first line
+        tooltip.set(0, stack.getRarity().getColor() + tooltip.get(0));
+
+        // Render the tooltip - at this point we're after JEI's rendering, so z-order is correct
+        net.minecraftforge.fml.client.config.GuiUtils.drawHoveringText(
+            tooltip, mouseX, mouseY,
+            mc.displayWidth, mc.displayHeight,
+            -1, mc.fontRenderer);
     }
 }

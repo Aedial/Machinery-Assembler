@@ -79,7 +79,7 @@ public class MAJEIPlugin implements IModPlugin {
     @Override
     public void registerCategories(IRecipeCategoryRegistration registry) {
         jeiHelpers = registry.getJeiHelpers();
-        registry.addRecipeCategories(new CategoryStructurePreview());
+        registry.addRecipeCategories(new CategoryStructurePreview(jeiHelpers.getGuiHelper()));
     }
 
     @Override

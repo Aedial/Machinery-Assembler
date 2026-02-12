@@ -4,6 +4,7 @@ import javax.annotation.Nonnull;
 
 import net.minecraft.client.resources.I18n;
 
+import mezz.jei.api.IGuiHelper;
 import mezz.jei.api.gui.IDrawable;
 import mezz.jei.api.gui.IGuiItemStackGroup;
 import mezz.jei.api.gui.IRecipeLayout;
@@ -20,10 +21,12 @@ import com.machineryassembler.MachineryAssembler;
 public class CategoryStructurePreview implements IRecipeCategory<StructurePreviewWrapper> {
 
     private final IDrawable background;
+    private final IDrawable slotDrawable;
     private final String trTitle;
 
-    public CategoryStructurePreview() {
+    public CategoryStructurePreview(IGuiHelper guiHelper) {
         this.background = new DynamicBackgroundDrawable();
+        this.slotDrawable = guiHelper.getSlotDrawable();
         this.trTitle = I18n.format("jei.category.machineryassembler.structure_preview");
     }
 
@@ -56,11 +59,12 @@ public class CategoryStructurePreview implements IRecipeCategory<StructurePrevie
         IGuiItemStackGroup group = recipeLayout.getItemStacks();
 
         // Output slot at top-right of preview area (if structure has output defined)
-        // Position: X_SIZE - 7 - 18 = 175 - 18 = 157, Y = 18 (below title)
+        // Position: X_SIZE - 7 - 18 = 184 - 7 - 18 = 159, Y = 18 (below title)
         if (recipeWrapper.hasOutput()) {
-            int outputSlotX = 200 - 7 - 18;  // Right side with margin
-            int outputSlotY = 18;  // Below title area
+            int outputSlotX = getBackground().getWidth() - 7 - 18 - 4;  // Right side with margin
+            int outputSlotY = 18 + 4;  // Below title area
             group.init(0, false, outputSlotX, outputSlotY);
+            group.setBackground(0, slotDrawable);
         } else {
             // Hidden output slot if no output
             group.init(0, false, -999999, -999999);

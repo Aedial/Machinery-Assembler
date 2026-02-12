@@ -43,6 +43,8 @@ import com.machineryassembler.common.structure.StructurePattern;
 /**
  * Helper class for rendering StructurePatterns in GUI.
  * Handles rotation, scaling, slicing, and block/tile entity rendering.
+ *
+ * FIXME: does not handle some special rendering cases (TESR?)
  */
 @SideOnly(Side.CLIENT)
 public class StructureRenderHelper {

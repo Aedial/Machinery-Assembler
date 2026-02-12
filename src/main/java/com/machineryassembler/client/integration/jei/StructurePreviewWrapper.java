@@ -7,11 +7,13 @@ package com.machineryassembler.client.integration.jei;
 
 import javax.annotation.Nonnull;
 import java.awt.Rectangle;
+import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+import org.lwjgl.BufferUtils;
 import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.GL11;
 
@@ -129,6 +131,12 @@ public class StructurePreviewWrapper implements IRecipeWrapper {
     // Updated each frame in drawInfo(); empty when no messages are visible.
     private static volatile List<Rectangle> activeMessagePanelRects = new ArrayList<>();
 
+    // Pending tooltip data for deferred rendering in DrawScreenEvent.Post phase.
+    // JEI renders slots after drawInfo(), so we must defer tooltip rendering to appear on top.
+    private static volatile ItemStack pendingTooltipStack = ItemStack.EMPTY;
+    private static volatile int pendingTooltipX = 0;
+    private static volatile int pendingTooltipY = 0;
+
     // Message item slot positions (recipe-relative coordinates) for tooltip/click handling
     // Index corresponds to messageItemStacks index (messages with empty stacks have null entries)
     private List<Rectangle> messageItemSlotRects = new ArrayList<>();
@@ -142,9 +150,24 @@ public class StructurePreviewWrapper implements IRecipeWrapper {
     /**
      * Returns the screen-space rectangles of the active message windows.
      * Used by the JEI global GUI handler to report exclusion areas.
+     * The handler checks if our category is active before calling this.
      */
     public static List<Rectangle> getActiveMessagePanelRects() {
         return activeMessagePanelRects;
+    }
+
+    /**
+     * Returns pending tooltip data for deferred rendering.
+     * Called by JEIScrollHandler in DrawScreenEvent.Post to render above JEI slots.
+     * @return Array of [ItemStack, mouseX, mouseY] or null if no pending tooltip
+     */
+    public static Object[] consumePendingTooltip() {
+        ItemStack stack = pendingTooltipStack;
+        if (stack.isEmpty()) return null;
+
+        // Clear pending data after consuming
+        pendingTooltipStack = ItemStack.EMPTY;
+        return new Object[]{stack, pendingTooltipX, pendingTooltipY};
     }
 
     public StructurePreviewWrapper(Structure structure) {
@@ -225,6 +248,7 @@ public class StructurePreviewWrapper implements IRecipeWrapper {
      */
     public boolean hasOutput() {
         StructureOutput output = structure.getOutput();
+        // TODO: should warn if output is defined but invalid (e.g. item doesn't exist)
         return output != null && output.isValid();
     }
 
@@ -257,6 +281,9 @@ public class StructurePreviewWrapper implements IRecipeWrapper {
     public void drawInfo(Minecraft minecraft, int recipeWidth, int recipeHeight, int mouseX, int mouseY) {
         // Clear the active panel rects; drawMessagePanel will populate if this recipe has messages
         activeMessagePanelRects = new ArrayList<>();
+
+        // Clear any pending tooltip from previous frame
+        pendingTooltipStack = ItemStack.EMPTY;
 
         // Store dimensions for slot repositioning
         this.recipeWidth = recipeWidth;
@@ -636,8 +663,9 @@ public class StructurePreviewWrapper implements IRecipeWrapper {
     }
 
     /**
-     * Draw tooltip for hovered message item.
-     * Must be called at the end of drawInfo() with high z-level to appear above JEI slots.
+     * Store pending tooltip data for deferred rendering.
+     * The actual tooltip is rendered in DrawScreenEvent.Post by JEIScrollHandler
+     * to ensure it appears above JEI's slot rendering.
      */
     private void drawMessageItemTooltip(Minecraft minecraft, int mouseX, int mouseY) {
         if (hoveredMessageItemIndex < 0 || hoveredMessageItemIndex >= messageItemStacks.size()) return;
@@ -645,26 +673,16 @@ public class StructurePreviewWrapper implements IRecipeWrapper {
         ItemStack stack = messageItemStacks.get(hoveredMessageItemIndex);
         if (stack.isEmpty()) return;
 
-        // Get tooltip lines from the item
-        List<String> tooltip = stack.getTooltip(minecraft.player,
-            minecraft.gameSettings.advancedItemTooltips
-                ? net.minecraft.client.util.ITooltipFlag.TooltipFlags.ADVANCED
-                : net.minecraft.client.util.ITooltipFlag.TooltipFlags.NORMAL);
+        // Get the current GL modelview matrix to convert recipe-relative coords to screen coords
+        FloatBuffer modelview = BufferUtils.createFloatBuffer(16);
+        GL11.glGetFloat(GL11.GL_MODELVIEW_MATRIX, modelview);
+        int originScreenX = (int) modelview.get(12);
+        int originScreenY = (int) modelview.get(13);
 
-        if (tooltip.isEmpty()) return;
-
-        // Apply rarity color to first line
-        tooltip.set(0, stack.getRarity().getColor() + tooltip.get(0));
-
-        // Render at high z-level to appear above JEI slots
-        GlStateManager.pushMatrix();
-        // FIXME: doesn't work, it still renders under JEI slots
-        GlStateManager.translate(0, 0, 400);  // High z to render above JEI's item slots (z~100-200)
-        net.minecraftforge.fml.client.config.GuiUtils.drawHoveringText(
-            tooltip, mouseX, mouseY,
-            minecraft.displayWidth, minecraft.displayHeight,
-            -1, minecraft.fontRenderer);
-        GlStateManager.popMatrix();
+        // Store pending tooltip data for deferred rendering
+        pendingTooltipStack = stack;
+        pendingTooltipX = originScreenX + mouseX;
+        pendingTooltipY = originScreenY + mouseY;
     }
 
     /**
