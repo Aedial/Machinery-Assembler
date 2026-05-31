@@ -61,8 +61,8 @@ public class CategoryStructurePreview implements IRecipeCategory<StructurePrevie
         // Output slot at top-right of preview area (if structure has output defined)
         // Position: X_SIZE - 7 - 18 = 184 - 7 - 18 = 159, Y = 18 (below title)
         if (recipeWrapper.hasOutput()) {
-            int outputSlotX = getBackground().getWidth() - 7 - 18 - 4;  // Right side with margin
-            int outputSlotY = 18 + 4;  // Below title area
+            int outputSlotX = getBackground().getWidth() - 7 - 18 - 2;  // Right side with margin
+            int outputSlotY = 18 + 2;  // Below title area
             group.init(0, false, outputSlotX, outputSlotY);
             group.setBackground(0, slotDrawable);
         } else {

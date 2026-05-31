@@ -16,10 +16,10 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 import com.machineryassembler.client.autobuild.AutobuildHandler;
-import com.machineryassembler.client.gui.GuiBatonSelector;
-import com.machineryassembler.client.render.BatonHighlightRenderer;
+import com.machineryassembler.client.gui.GuiWrenchSelector;
+import com.machineryassembler.client.render.WrenchHighlightRenderer;
 import com.machineryassembler.client.render.InWorldPreviewRenderer;
-import com.machineryassembler.common.item.ItemAssemblerBaton;
+import com.machineryassembler.common.item.ItemAssemblerWrench;
 
 
 /**
@@ -35,7 +35,7 @@ import com.machineryassembler.common.item.ItemAssemblerBaton;
  *
  * By cancelling at step 1, we prevent containers from opening.
  * This also handles right-click interactions for JEI previews regardless of held item,
- * since JEI previews shouldn't require holding the baton.
+ * since JEI previews shouldn't require holding the wrench.
  */
 @SideOnly(Side.CLIENT)
 public class PreviewInteractionHandler {
@@ -58,34 +58,34 @@ public class PreviewInteractionHandler {
         event.setCanceled(true);
         event.setCancellationResult(EnumActionResult.SUCCESS);
 
-        // Determine what to do based on whether the baton has a selection
+        // Determine what to do based on whether the wrench has a selection
         ResourceLocation selected = null;
-        ItemStack batonStack = ItemStack.EMPTY;
+        ItemStack wrenchStack = ItemStack.EMPTY;
 
-        if (mainHand.getItem() instanceof ItemAssemblerBaton) {
-            batonStack = mainHand;
-            selected = ItemAssemblerBaton.getSelectedStructure(mainHand);
+        if (mainHand.getItem() instanceof ItemAssemblerWrench) {
+            wrenchStack = mainHand;
+            selected = ItemAssemblerWrench.getSelectedStructure(mainHand);
         } else {
             ItemStack offHand = player.getHeldItemOffhand();
-            if (offHand.getItem() instanceof ItemAssemblerBaton) {
-                batonStack = offHand;
-                selected = ItemAssemblerBaton.getSelectedStructure(offHand);
+            if (offHand.getItem() instanceof ItemAssemblerWrench) {
+                wrenchStack = offHand;
+                selected = ItemAssemblerWrench.getSelectedStructure(offHand);
             }
         }
 
         if (player.isSneaking()) {
-            handleShiftRightClick(player, previewRenderer, batonStack, event);
+            handleShiftRightClick(player, previewRenderer, wrenchStack, event);
 
             return;
         }
 
-        // Check if this preview is in autobuild mode (started from baton selection)
+        // Check if this preview is in autobuild mode (started from wrench selection)
         // vs JEI layer-by-layer guided mode (started from JEI preview)
         if (previewRenderer.isAutobuildMode() && selected != null) {
-            // Baton-selected autobuild: fix preview or trigger autobuild
-            attemptAutobuildOrFix(player, batonStack);
+            // Wrench-selected autobuild: fix preview or trigger autobuild
+            attemptAutobuildOrFix(player, wrenchStack);
         } else {
-            // JEI preview or preview without baton: just fix the preview for layer guidance
+            // JEI preview or preview without wrench: just fix the preview for layer guidance
             fixPreview(previewRenderer);
         }
     }
@@ -110,7 +110,7 @@ public class PreviewInteractionHandler {
 
             // Shift right-click cancels the preview
             if (player.isSneaking()) {
-                BatonHighlightRenderer.clearHighlights();
+                WrenchHighlightRenderer.clearHighlights();
                 previewRenderer.cancelPreview();
 
                 return;
@@ -121,15 +121,15 @@ public class PreviewInteractionHandler {
             return;
         }
 
-        // Autobuild mode: let the baton handle it if player is holding one
+        // Autobuild mode: let the wrench handle it if player is holding one
         ItemStack mainHand = player.getHeldItemMainhand();
 
-        if (mainHand.getItem() instanceof ItemAssemblerBaton) return;
+        if (mainHand.getItem() instanceof ItemAssemblerWrench) return;
 
         ItemStack offHand = player.getHeldItemOffhand();
-        if (offHand.getItem() instanceof ItemAssemblerBaton) return;
+        if (offHand.getItem() instanceof ItemAssemblerWrench) return;
 
-        // Autobuild mode but no baton - shouldn't happen normally, just fix preview
+        // Autobuild mode but no wrench - shouldn't happen normally, just fix preview
         event.setCanceled(true);
         event.setCancellationResult(EnumActionResult.SUCCESS);
         fixPreview(previewRenderer);
@@ -152,7 +152,7 @@ public class PreviewInteractionHandler {
 
             // Shift right-click cancels the preview
             if (player.isSneaking()) {
-                BatonHighlightRenderer.clearHighlights();
+                WrenchHighlightRenderer.clearHighlights();
                 previewRenderer.cancelPreview();
 
                 return;
@@ -163,35 +163,35 @@ public class PreviewInteractionHandler {
     }
 
     /**
-     * Handle shift+right-click: cancel preview and open baton GUI if holding baton.
+     * Handle shift+right-click: cancel preview and open wrench GUI if holding wrench.
      */
     private void handleShiftRightClick(EntityPlayer player, InWorldPreviewRenderer previewRenderer,
-                                       ItemStack batonStack, PlayerInteractEvent.RightClickBlock event) {
+                                       ItemStack wrenchStack, PlayerInteractEvent.RightClickBlock event) {
         // Clear any existing highlights from previous autobuild attempts
-        BatonHighlightRenderer.clearHighlights();
+        WrenchHighlightRenderer.clearHighlights();
 
-        if (!batonStack.isEmpty()) {
+        if (!wrenchStack.isEmpty()) {
             // Cancel preview and open GUI with clicked block as anchor
             previewRenderer.cancelPreview();
-            AutobuildHandler.clearSelection(batonStack);
+            AutobuildHandler.clearSelection(wrenchStack);
 
             IBlockState state = event.getWorld().getBlockState(event.getPos());
-            ItemAssemblerBaton.setLastAnchorBlock(batonStack, state, event.getPos());
-            Minecraft.getMinecraft().displayGuiScreen(new GuiBatonSelector(batonStack, state));
+            ItemAssemblerWrench.setLastAnchorBlock(wrenchStack, state, event.getPos());
+            Minecraft.getMinecraft().displayGuiScreen(new GuiWrenchSelector(wrenchStack, state));
         } else {
-            // No baton: just cancel the preview
+            // No wrench: just cancel the preview
             previewRenderer.cancelPreview();
         }
     }
 
     /**
-     * Fix the preview and trigger autobuild if baton has a selection.
+     * Fix the preview and trigger autobuild if wrench has a selection.
      */
-    private void attemptAutobuildOrFix(EntityPlayer player, ItemStack batonStack) {
+    private void attemptAutobuildOrFix(EntityPlayer player, ItemStack wrenchStack) {
         InWorldPreviewRenderer previewRenderer = ClientProxy.previewRenderer;
         if (!previewRenderer.isFixed()) previewRenderer.fixPreview();
 
-        AutobuildHandler.attemptAutobuild(player, null, batonStack);
+        AutobuildHandler.attemptAutobuild(player, null, wrenchStack);
     }
 
     /**

@@ -10,6 +10,7 @@ import net.minecraft.client.renderer.block.model.IBakedModel;
 import net.minecraft.init.Blocks;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.EnumBlockRenderType;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
@@ -35,6 +36,16 @@ public final class BlockStateRenderValidator {
         if (state == null || state.getBlock() == Blocks.AIR) return false;
 
         try {
+            EnumBlockRenderType renderType = state.getRenderType();
+
+            // We handle these cases a different way
+            if (renderType == EnumBlockRenderType.INVISIBLE ||
+                renderType == EnumBlockRenderType.ENTITYBLOCK_ANIMATED) {
+                return false;
+            }
+
+            if (renderType == EnumBlockRenderType.LIQUID) return true;
+
             Minecraft mc = Minecraft.getMinecraft();
             if (mc.getBlockRendererDispatcher() == null) return true;
 

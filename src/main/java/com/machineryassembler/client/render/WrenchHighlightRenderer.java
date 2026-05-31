@@ -24,15 +24,15 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import com.machineryassembler.common.item.ItemAssemblerBaton;
+import com.machineryassembler.common.item.ItemAssemblerWrench;
 
 
 /**
  * Renders block highlight outlines for autobuild obstructions and placement issues.
- * Highlights are only visible when holding the Assembler's Baton.
+ * Highlights are only visible when holding the Assembler's Wrench.
  */
 @SideOnly(Side.CLIENT)
-public class BatonHighlightRenderer {
+public class WrenchHighlightRenderer {
 
     public enum HighlightType {
         OBSTRUCTION(1.0f, 0.2f, 0.2f),      // Red for obstructions
@@ -91,14 +91,14 @@ public class BatonHighlightRenderer {
     }
 
     /**
-     * Check if player is holding the baton in either hand.
+     * Check if player is holding the wrench in either hand.
      */
-    private static boolean isHoldingBaton(EntityPlayer player) {
+    private static boolean isHoldingWrench(EntityPlayer player) {
         ItemStack mainHand = player.getHeldItem(EnumHand.MAIN_HAND);
         ItemStack offHand = player.getHeldItem(EnumHand.OFF_HAND);
 
-        return mainHand.getItem() instanceof ItemAssemblerBaton ||
-               offHand.getItem() instanceof ItemAssemblerBaton;
+        return mainHand.getItem() instanceof ItemAssemblerWrench ||
+               offHand.getItem() instanceof ItemAssemblerWrench;
     }
 
     @SubscribeEvent
@@ -108,8 +108,8 @@ public class BatonHighlightRenderer {
         EntityPlayer player = Minecraft.getMinecraft().player;
         if (player == null) return;
 
-        // Only render when holding baton
-        if (!isHoldingBaton(player)) return;
+        // Only render when holding wrench
+        if (!isHoldingWrench(player)) return;
 
         long now = System.currentTimeMillis();
 

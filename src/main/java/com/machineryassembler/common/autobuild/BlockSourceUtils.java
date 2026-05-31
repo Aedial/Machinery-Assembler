@@ -8,10 +8,15 @@ import javax.annotation.Nullable;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
+import net.minecraft.init.Items;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.JsonToNBT;
+import net.minecraft.nbt.NBTException;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fml.common.registry.ForgeRegistries;
+
+import com.machineryassembler.common.structure.BlockRequirement;
 
 
 /**
@@ -65,11 +70,61 @@ public class BlockSourceUtils {
     }
 
     /**
+     * Creates a key string for an item stack (registry:meta format).
+     */
+    public static String stackToKey(ItemStack stack) {
+        if (stack.isEmpty() || stack.getItem() == Items.AIR) return "minecraft:air@0";
+
+        ResourceLocation registryName = stack.getItem().getRegistryName();
+        if (registryName == null) return "minecraft:air@0";
+
+        String baseKey = registryName.toString() + "@" + stack.getMetadata();
+        if (!stack.hasTagCompound()) return baseKey;
+
+        return baseKey + "|" + stack.getTagCompound().toString();
+    }
+
+    public static String requirementToKey(BlockRequirement requirement) {
+        return stackToKey(requirement.getRequiredStack());
+    }
+
+    public static ItemStack keyToStack(String key) {
+        int tagSeparator = key.indexOf('|');
+        String baseKey = tagSeparator < 0 ? key : key.substring(0, tagSeparator);
+        int atIndex = baseKey.lastIndexOf('@');
+        String itemId = atIndex < 0 ? baseKey : baseKey.substring(0, atIndex);
+
+        Item item = ForgeRegistries.ITEMS.getValue(new ResourceLocation(itemId));
+        if (item == null || item == Items.AIR) return ItemStack.EMPTY;
+
+        int meta = 0;
+        if (atIndex >= 0) {
+            try {
+                meta = Integer.parseInt(baseKey.substring(atIndex + 1));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+
+        ItemStack stack = new ItemStack(item, 1, meta);
+        if (tagSeparator < 0 || tagSeparator == key.length() - 1) return stack;
+
+        try {
+            stack.setTagCompound(JsonToNBT.getTagFromJson(key.substring(tagSeparator + 1)));
+        } catch (NBTException ignored) {
+        }
+
+        return stack;
+    }
+
+    /**
      * Gets a display name for a block key.
      * Uses ItemStack with correct metadata to get the meta-specific name
      * (e.g. "Oak Planks" vs "Spruce Planks" instead of generic "Wooden Planks").
      */
     public static String getDisplayName(String key) {
+        ItemStack keyedStack = keyToStack(key);
+        if (!keyedStack.isEmpty()) return keyedStack.getDisplayName();
+
         IBlockState state = keyToState(key);
         if (state == null) return key;
 
@@ -80,8 +135,8 @@ public class BlockSourceUtils {
         // Some blocks don't have corresponding items (e.g. flowing water)
         if (item == null) return block.getLocalizedName();
 
-        ItemStack stack = new ItemStack(item, 1, meta);
+        ItemStack displayStack = new ItemStack(item, 1, meta);
 
-        return stack.getDisplayName();
+        return displayStack.getDisplayName();
     }
 }

@@ -14,7 +14,7 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 import com.machineryassembler.MachineryAssembler;
-import com.machineryassembler.common.item.ItemAssemblerBaton;
+import com.machineryassembler.common.item.ItemAssemblerWrench;
 
 
 /**
@@ -23,7 +23,7 @@ import com.machineryassembler.common.item.ItemAssemblerBaton;
 @Mod.EventBusSubscriber(modid = MachineryAssembler.MODID)
 public class ItemRegistry {
 
-    public static final ItemAssemblerBaton ASSEMBLER_BATON = new ItemAssemblerBaton();
+    public static final ItemAssemblerWrench ASSEMBLER_BATON = new ItemAssemblerWrench();
 
     @SubscribeEvent
     public static void onItemRegister(RegistryEvent.Register<Item> event) {

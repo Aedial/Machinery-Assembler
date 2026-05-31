@@ -93,10 +93,40 @@ public class NBTJsonDeserializer {
     protected NBTBase readTypedValue() throws NBTException {
         this.skipWhitespace();
 
-        String s = this.readQuotedString();
+        if (!this.canRead()) throw this.exception("Expected value");
+
+        // Check if this is a quoted string or an unquoted value
+        String s;
+        if (this.peek() == '"') {
+            s = this.readQuotedString();
+        } else {
+            s = this.readUnquotedString();
+        }
+
         if (s.isEmpty()) throw this.exception("Expected value");
 
         return this.type(s);
+    }
+
+    /**
+     * Reads an unquoted string value (for JSON compatibility with numbers, booleans, etc.)
+     * Stops at structural characters: , } ] : or whitespace
+     */
+    private String readUnquotedString() throws NBTException {
+        int start = this.cursor;
+
+        while (this.canRead() && this.isAllowedInUnquotedValue(this.peek())) {
+            ++this.cursor;
+        }
+
+        return this.string.substring(start, this.cursor);
+    }
+
+    /**
+     * Characters allowed in unquoted values (numbers, true/false, etc.)
+     */
+    private boolean isAllowedInUnquotedValue(char c) {
+        return c != ',' && c != '}' && c != ']' && c != ':' && !Character.isWhitespace(c);
     }
 
     private NBTBase type(String stringIn) {

@@ -8,11 +8,13 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
-## [0.2.2] - 2026-02-12
+## [0.2.2] - 2026-06-10
 ### Fixed
 - Fix message item tooltip rendering behind JEI item slots.
 - Fix JEI exclusion area being applied to other JEI tabs.
 - Fix output slot not rendering correctly in the JEI preview.
+- Fix structure previews rendering animated block entities like Botania pylons, Thaumcraft runic matrices, beds, and skulls incorrectly.
+- Fix TESR preview persistence in JEI and make autobuild count special block items like beds and skulls correctly instead of reporting them as Air.
 - Fix some conversion issues in the CM3 to MA script. AE2 cables and some rare cases of block variants are still not handled correctly, but the script should work for the majority of structutres now.
 
 
@@ -25,7 +27,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 ## [0.2.0] - 2026-02-09
 ### Added
 - Add script to convert Compact Machine format to our custom JSON format, for easier migration of existing structures.
-- Add autobuild with the Assembler's Baton.
+- Add autobuild with the Assembler's Wrench.
 - Add configurable autobuild throttle (blocks per tick, fractional values supported).
 - Add in-game config GUI.
 

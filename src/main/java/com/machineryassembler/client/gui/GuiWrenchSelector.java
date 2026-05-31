@@ -16,13 +16,10 @@ import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 
 import net.minecraft.block.state.IBlockState;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
-import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
@@ -30,28 +27,27 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import com.machineryassembler.MachineryAssembler;
 import com.machineryassembler.client.autobuild.AutobuildHandler;
 import com.machineryassembler.client.render.StructureRenderContext;
 import com.machineryassembler.client.render.StructureRenderHelper;
-import com.machineryassembler.common.item.ItemAssemblerBaton;
+import com.machineryassembler.common.item.ItemAssemblerWrench;
 import com.machineryassembler.common.structure.BlockRequirement;
 import com.machineryassembler.common.structure.Structure;
 import com.machineryassembler.common.structure.StructureRegistry;
 
 
 /**
- * GUI for selecting a structure for autobuild with the Assembler's Baton.
+ * GUI for selecting a structure for autobuild with the Assembler's Wrench.
  *
  * Layout: 1/4 left (filter + list), 3/4 right (preview).
  * Double-click to select structure for autobuild.
  */
 @SideOnly(Side.CLIENT)
-public class GuiBatonSelector extends GuiScreen {
+public class GuiWrenchSelector extends GuiScreen {
 
     private static final int BUTTON_I18N_TOGGLE = 0;
 
-    private final ItemStack batonStack;
+    private final ItemStack wrenchStack;
     private final IBlockState anchorState;
     private final BlockPos anchorPos;
 
@@ -75,10 +71,10 @@ public class GuiBatonSelector extends GuiScreen {
     // I18n toggle state
     private boolean useI18nNames = true;
 
-    public GuiBatonSelector(ItemStack batonStack, @Nullable IBlockState anchorState) {
-        this.batonStack = batonStack;
+    public GuiWrenchSelector(ItemStack wrenchStack, @Nullable IBlockState anchorState) {
+        this.wrenchStack = wrenchStack;
         this.anchorState = anchorState;
-        this.anchorPos = ItemAssemblerBaton.getLastAnchorPos(batonStack);
+        this.anchorPos = ItemAssemblerWrench.getLastAnchorPos(wrenchStack);
     }
 
     @Override
@@ -101,8 +97,8 @@ public class GuiBatonSelector extends GuiScreen {
 
     private String getI18nButtonText() {
         return useI18nNames
-            ? I18n.format("gui.machineryassembler.baton.i18n.on")
-            : I18n.format("gui.machineryassembler.baton.i18n.off");
+            ? I18n.format("gui.machineryassembler.wrench.i18n.on")
+            : I18n.format("gui.machineryassembler.wrench.i18n.off");
     }
 
     @Override
@@ -262,7 +258,7 @@ public class GuiBatonSelector extends GuiScreen {
 
         if (previewContext == null || selectedStructure == null) {
             // No selection - show hint
-            String hint = I18n.format("gui.machineryassembler.baton.no_selection");
+            String hint = I18n.format("gui.machineryassembler.wrench.no_selection");
             int hintX = panelX + (panelW - fontRenderer.getStringWidth(hint)) / 2;
             int hintY = panelY + panelH / 2;
             fontRenderer.drawString(hint, hintX, hintY, 0x808080);
@@ -301,7 +297,7 @@ public class GuiBatonSelector extends GuiScreen {
 
         // Footer with instruction
         int footerY = panelY + panelH + 10;
-        String footerText = I18n.format("gui.machineryassembler.baton.double_click_hint");
+        String footerText = I18n.format("gui.machineryassembler.wrench.double_click_hint");
         int footerX = panelX + (panelW - fontRenderer.getStringWidth(footerText)) / 2;
         fontRenderer.drawString(footerText, footerX, footerY, 0xAAAAAA);
     }
@@ -318,7 +314,7 @@ public class GuiBatonSelector extends GuiScreen {
     }
 
     private void selectForAutobuild(ResourceLocation structureId) {
-        AutobuildHandler.selectStructure(batonStack, structureId, anchorState, anchorPos);
+        AutobuildHandler.selectStructure(wrenchStack, structureId, anchorState, anchorPos);
         mc.displayGuiScreen(null);
     }
 

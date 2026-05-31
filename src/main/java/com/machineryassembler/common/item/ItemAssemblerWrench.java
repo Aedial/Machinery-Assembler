@@ -30,14 +30,14 @@ import com.machineryassembler.MachineryAssembler;
 
 
 /**
- * Assembler's Baton - Used to select and autobuild multiblock structures.
+ * Assembler's Wrench - Used to select and autobuild multiblock structures.
  *
  * Right-click in air while sneaking: Opens GUI with no anchor filter.
  * Right-click in air (no sneak): Opens GUI with previous anchor filter.
  * Right-click on block: Opens GUI with that block as anchor filter.
  * Right-click after selection: Autobuilds structure at position.
  */
-public class ItemAssemblerBaton extends Item {
+public class ItemAssemblerWrench extends Item {
 
     private static final String NBT_SELECTED_STRUCTURE = "SelectedStructure";
     private static final String NBT_FOCUS_BLOCK = "FocusBlock";
@@ -46,9 +46,9 @@ public class ItemAssemblerBaton extends Item {
     private static final String NBT_LAST_ANCHOR_META = "LastAnchorMeta";
     private static final String NBT_LAST_ANCHOR_POS = "LastAnchorPos";
 
-    public ItemAssemblerBaton() {
-        setRegistryName(MachineryAssembler.MODID, "assembler_baton");
-        setTranslationKey(MachineryAssembler.MODID + ".assembler_baton");
+    public ItemAssemblerWrench() {
+        setRegistryName(MachineryAssembler.MODID, "assembler_wrench");
+        setTranslationKey(MachineryAssembler.MODID + ".assembler_wrench");
         setMaxStackSize(1);
         setCreativeTab(CreativeTabs.TOOLS);
     }
@@ -70,10 +70,10 @@ public class ItemAssemblerBaton extends Item {
                 return new ActionResult<>(EnumActionResult.SUCCESS, stack);
             }
 
-            // Check if the preview is in autobuild mode (started by baton selection)
+            // Check if the preview is in autobuild mode (started by wrench selection)
             // vs JEI layer-by-layer mode (started from JEI preview)
             if (isAutobuildModeClient() && selected != null) {
-                // Baton-started autobuild preview: fix and trigger autobuild
+                // Wrench-started autobuild preview: fix and trigger autobuild
                 attemptAutobuildOrFix(player, stack);
             } else {
                 // JEI preview (layer guidance mode): just fix the preview
@@ -131,7 +131,7 @@ public class ItemAssemblerBaton extends Item {
 
     /**
      * Check if the current preview is in autobuild mode (client-side only).
-     * Autobuild mode means the preview was started by baton selection.
+     * Autobuild mode means the preview was started by wrench selection.
      * Non-autobuild mode means the preview was started from JEI for layer guidance.
      */
     @SideOnly(Side.CLIENT)
@@ -167,7 +167,7 @@ public class ItemAssemblerBaton extends Item {
     }
 
     /**
-     * Fix the preview for layer-by-layer guidance (used for JEI previews without baton selection).
+     * Fix the preview for layer-by-layer guidance (used for JEI previews without wrench selection).
      */
     @SideOnly(Side.CLIENT)
     private void fixPreviewClient() {
@@ -177,14 +177,14 @@ public class ItemAssemblerBaton extends Item {
     }
 
     /**
-     * Opens the baton selector GUI.
+     * Opens the wrench selector GUI.
      * Called on client side only.
      */
     @SideOnly(Side.CLIENT)
     private void openGui(ItemStack stack, @Nullable IBlockState anchorState, EntityPlayer player) {
         // Defer import to avoid class loading issues on server
         net.minecraft.client.Minecraft.getMinecraft().displayGuiScreen(
-            new com.machineryassembler.client.gui.GuiBatonSelector(stack, anchorState));
+            new com.machineryassembler.client.gui.GuiWrenchSelector(stack, anchorState));
     }
 
     // ----- NBT Accessors -----
@@ -220,6 +220,7 @@ public class ItemAssemblerBaton extends Item {
     }
 
     @Nullable
+    @SuppressWarnings("deprecation")
     public static IBlockState getFocusBlock(ItemStack stack) {
         NBTTagCompound tag = stack.getTagCompound();
         if (tag == null || !tag.hasKey(NBT_FOCUS_BLOCK)) return null;
@@ -251,6 +252,7 @@ public class ItemAssemblerBaton extends Item {
     }
 
     @Nullable
+    @SuppressWarnings("deprecation")
     public static IBlockState getLastAnchorBlock(ItemStack stack) {
         NBTTagCompound tag = stack.getTagCompound();
         if (tag == null || !tag.hasKey(NBT_LAST_ANCHOR_BLOCK)) return null;
@@ -316,16 +318,16 @@ public class ItemAssemblerBaton extends Item {
         ResourceLocation selectedStructure = getSelectedStructure(stack);
 
         if (selectedStructure != null) {
-            tooltip.add(I18n.format("item.machineryassembler.assembler_baton.selected", selectedStructure.toString()));
-            tooltip.add(I18n.format("item.machineryassembler.assembler_baton.clear_hint"));
+            tooltip.add(I18n.format("item.machineryassembler.assembler_wrench.selected", selectedStructure.toString()));
+            tooltip.add(I18n.format("item.machineryassembler.assembler_wrench.clear_hint"));
         } else {
-            tooltip.add(I18n.format("item.machineryassembler.assembler_baton.no_selection"));
+            tooltip.add(I18n.format("item.machineryassembler.assembler_wrench.no_selection"));
         }
 
         IBlockState focusBlock = getFocusBlock(stack);
         if (focusBlock != null) {
             String blockName = focusBlock.getBlock().getLocalizedName();
-            tooltip.add(I18n.format("item.machineryassembler.assembler_baton.focus", blockName));
+            tooltip.add(I18n.format("item.machineryassembler.assembler_wrench.focus", blockName));
         }
     }
 

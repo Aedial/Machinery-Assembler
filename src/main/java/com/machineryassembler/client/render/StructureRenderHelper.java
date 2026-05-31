@@ -20,18 +20,21 @@ import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.BlockRendererDispatcher;
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.OpenGlHelper;
+import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.Tessellator;
-import net.minecraft.client.renderer.block.model.IBakedModel;
 import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.client.renderer.tileentity.TileEntityRendererDispatcher;
 import net.minecraft.client.renderer.tileentity.TileEntitySpecialRenderer;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.client.renderer.vertex.VertexFormat;
 import net.minecraft.init.Blocks;
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.EnumBlockRenderType;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
+import net.minecraftforge.client.ForgeHooksClient;
 import net.minecraftforge.fluids.IFluidBlock;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -43,14 +46,15 @@ import com.machineryassembler.common.structure.StructurePattern;
 /**
  * Helper class for rendering StructurePatterns in GUI.
  * Handles rotation, scaling, slicing, and block/tile entity rendering.
- *
- * FIXME: does not handle some special rendering cases (TESR?)
+ * <p>
+ * Global TESRs are still skipped because they render relative to player state.
  */
 @SideOnly(Side.CLIENT)
 public class StructureRenderHelper {
 
     private final StructurePattern pattern;
     private final DummyBlockAccess renderAccess;
+    private final PreviewWorld previewWorld;
     private final Map<BlockPos, RenderData> renderDataMap = new HashMap<>();
 
     private double rotX = -30;
@@ -65,6 +69,7 @@ public class StructureRenderHelper {
     public StructureRenderHelper(StructurePattern pattern) {
         this.pattern = pattern;
         this.renderAccess = new DummyBlockAccess();
+        this.previewWorld = PreviewWorld.create();
         buildRenderData();
         resetRotation();
     }
@@ -72,6 +77,7 @@ public class StructureRenderHelper {
     private void buildRenderData() {
         renderDataMap.clear();
         renderAccess.clear();
+        previewWorld.clearPreview();
 
         for (Map.Entry<BlockPos, BlockRequirement> entry : pattern.getPattern().entrySet()) {
             BlockPos pos = entry.getKey();
@@ -208,7 +214,9 @@ public class StructureRenderHelper {
 
             // Skip states with missing models to avoid purple/black checkerboard textures
             // But allow fluid blocks which render differently
-            boolean isFluid = state.getBlock() instanceof BlockLiquid || state.getBlock() instanceof IFluidBlock;
+            EnumBlockRenderType renderType = state.getRenderType();
+            boolean isFluid = renderType == EnumBlockRenderType.LIQUID ||
+                state.getBlock() instanceof BlockLiquid || state.getBlock() instanceof IFluidBlock;
             if (!isFluid && !BlockStateRenderValidator.canRender(state)) continue;
 
             try {
@@ -227,30 +235,61 @@ public class StructureRenderHelper {
         }
         tes.draw();
 
-        // Render tile entities
-        for (Map.Entry<BlockPos, RenderData> entry : renderDataMap.entrySet()) {
-            BlockPos pos = entry.getKey();
-            if (slice.isPresent() && slice.get() != pos.getY()) continue;
+        // Render tile entities with proper lighting and render pass setup
+        // Render both pass 0 (opaque) and pass 1 (translucent) for proper transparency support
+        RenderHelper.enableStandardItemLighting();
+        GlStateManager.enableDepth();
+        GlStateManager.depthFunc(GL11.GL_LEQUAL);
+        GlStateManager.enableAlpha();
 
-            RenderData data = entry.getValue();
-            TileEntity te = data.getTileEntity();
-            if (te == null) continue;
+        TileEntityRendererDispatcher dispatcher = TileEntityRendererDispatcher.instance;
+        World previousWorld = dispatcher.world;
+        dispatcher.setWorld(previewWorld);
 
-            @SuppressWarnings("unchecked")
-            TileEntitySpecialRenderer<TileEntity> renderer =
-                TileEntityRendererDispatcher.instance.getRenderer(te);
-            if (renderer == null) continue;
+        try {
+            for (int pass = 0; pass <= 1; pass++) {
+                ForgeHooksClient.setRenderPass(pass);
 
-            te.setWorld(Minecraft.getMinecraft().world);
-            te.setPos(pos);
+                for (Map.Entry<BlockPos, RenderData> entry : renderDataMap.entrySet()) {
+                    BlockPos pos = entry.getKey();
+                    if (slice.isPresent() && slice.get() != pos.getY()) continue;
 
-            try {
-                renderer.render(te, pos.getX(), pos.getY(), pos.getZ(), pTicks, 0, 1F);
-            } catch (Exception e) {
-                // Some TileEntities throw when rendered without a proper world context
-                // This is expected for blocks like AE2's Quantum Bridge
+                    TileEntity te = previewWorld.getTileEntity(pos);
+                    if (te == null) continue;
+
+                    if (!te.shouldRenderInPass(pass)) continue;
+
+                    TileEntitySpecialRenderer<TileEntity> renderer = dispatcher.getRenderer(te);
+                    if (renderer == null) continue;
+
+                    // Skip global renderers as they often cause issues in GUI context
+                    // They render relative to player position rather than tile position
+                    if (renderer.isGlobalRenderer(te)) continue;
+
+                    te.setWorld(previewWorld);
+                    te.setPos(pos);
+
+                    try {
+                        int light = previewWorld.getCombinedLight(pos, 0);
+                        int lightX = light % 65536;
+                        int lightY = light / 65536;
+                        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, lightX, lightY);
+                        GlStateManager.color(1F, 1F, 1F, 1F);
+
+                        // Preview TESRs are regular renders, not block-breaking overlays.
+                        dispatcher.render(te, pos.getX(), pos.getY(), pos.getZ(), pTicks);
+                    } catch (Exception e) {
+                        // Some TileEntities throw when rendered without a proper world context
+                        // This is expected for blocks like AE2's Quantum Bridge
+                    }
+                }
             }
+        } finally {
+            dispatcher.setWorld(previousWorld);
         }
+
+        ForgeHooksClient.setRenderPass(-1);
+        RenderHelper.disableStandardItemLighting();
 
         GL11.glPopMatrix();
         GL11.glPopAttrib();
@@ -261,6 +300,7 @@ public class StructureRenderHelper {
      */
     private void updateRenderAccess(@Nullable Integer slice) {
         renderAccess.clear();
+        previewWorld.clearPreview();
 
         for (Map.Entry<BlockPos, RenderData> entry : renderDataMap.entrySet()) {
             BlockPos pos = entry.getKey();
@@ -270,8 +310,10 @@ public class StructureRenderHelper {
             IBlockState state = data.getSampleState(sampleSnap);
             renderAccess.setBlockState(pos, state);
 
-            TileEntity te = data.getTileEntity();
+            TileEntity te = data.getTileEntity(previewWorld, pos);
             if (te != null) renderAccess.setTileEntity(pos, te);
+
+            previewWorld.setPreviewState(pos, state, te);
         }
     }
 
@@ -292,33 +334,37 @@ public class StructureRenderHelper {
         }
 
         @Nullable
-        TileEntity getTileEntity() {
+        TileEntity getTileEntity(PreviewWorld previewWorld, BlockPos pos) {
             if (!info.hasTileEntity()) return null;
 
             // Update tile entity if state changed
             IBlockState currentState = getSampleState(-1);
-            if (lastState != currentState || cachedTileEntity == null) {
+            if (currentState == null || currentState.getBlock() == Blocks.AIR) {
+                cachedTileEntity = null;
+                lastState = null;
+                return null;
+            }
+
+            if (lastState != currentState || cachedTileEntity == null || cachedTileEntity.isInvalid()) {
                 lastState = currentState;
 
                 if (currentState.getBlock().hasTileEntity(currentState)) {
                     try {
                         cachedTileEntity = currentState.getBlock().createTileEntity(
-                            Minecraft.getMinecraft().world, currentState);
+                            previewWorld, currentState);
 
-                        // Apply preview tag if present
-                        NBTTagCompound previewTag = info.getPreviewTag();
-                        if (cachedTileEntity != null && previewTag != null && !previewTag.isEmpty()) {
-                            NBTTagCompound nbt = new NBTTagCompound();
-                            cachedTileEntity.writeToNBT(nbt);
-                            for (String key : previewTag.getKeySet()) nbt.setTag(key, previewTag.getTag(key));
-                            cachedTileEntity.readFromNBT(nbt);
-                        }
+                        info.applyPreviewTag(cachedTileEntity);
                     } catch (Exception e) {
                         cachedTileEntity = null;
                     }
                 } else {
                     cachedTileEntity = null;
                 }
+            }
+
+            if (cachedTileEntity != null) {
+                cachedTileEntity.setWorld(previewWorld);
+                cachedTileEntity.setPos(pos);
             }
 
             return cachedTileEntity;

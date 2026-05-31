@@ -27,7 +27,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import com.machineryassembler.MachineryAssembler;
 import com.machineryassembler.client.autobuild.AutobuildHandler;
 import com.machineryassembler.client.render.InWorldPreviewRenderer;
-import com.machineryassembler.common.item.ItemAssemblerBaton;
+import com.machineryassembler.common.item.ItemAssemblerWrench;
 
 
 /**
@@ -115,22 +115,22 @@ public class PreviewKeybindHandler {
 
     /**
      * Cancels the current in-world preview.
-     * Also clears the baton selection if player is holding the baton.
+     * Also clears the wrench selection if player is holding the wrench.
      */
     private static void cancelPreview() {
         ClientProxy.previewRenderer.cancelPreview();
 
-        // Also clear baton selection if holding the baton
+        // Also clear wrench selection if holding the wrench
         EntityPlayer player = Minecraft.getMinecraft().player;
         if (player != null) {
             ItemStack heldItem = player.getHeldItemMainhand();
-            if (heldItem.getItem() instanceof ItemAssemblerBaton) {
+            if (heldItem.getItem() instanceof ItemAssemblerWrench) {
                 AutobuildHandler.clearSelection(heldItem);
                 return;
             }
 
             heldItem = player.getHeldItemOffhand();
-            if (heldItem.getItem() instanceof ItemAssemblerBaton) {
+            if (heldItem.getItem() instanceof ItemAssemblerWrench) {
                 AutobuildHandler.clearSelection(heldItem);
                 return;
             }
@@ -195,7 +195,7 @@ public class PreviewKeybindHandler {
 
     /**
      * Handle shift+scroll wheel to rotate the preview.
-     * Note: Right-click to fix preview is now handled by ItemAssemblerBaton directly.
+     * Note: Right-click to fix preview is now handled by ItemAssemblerWrench directly.
      */
     @SubscribeEvent
     public void onMouseInput(InputEvent.MouseInputEvent event) {

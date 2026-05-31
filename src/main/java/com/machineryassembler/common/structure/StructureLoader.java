@@ -45,9 +45,7 @@ public class StructureLoader {
     public static List<File> discoverDirectory(File directory) {
         List<File> candidates = new ArrayList<>();
 
-        if (!directory.exists()) {
-            return candidates;
-        }
+        if (!directory.exists()) return candidates;
 
         LinkedList<File> directories = Lists.newLinkedList();
         directories.add(directory);
@@ -55,9 +53,7 @@ public class StructureLoader {
         while (!directories.isEmpty()) {
             File dir = directories.remove(0);
             File[] files = dir.listFiles();
-            if (files == null) {
-                continue;
-            }
+            if (files == null) continue;
 
             for (File file : files) {
                 if (file.isDirectory()) {

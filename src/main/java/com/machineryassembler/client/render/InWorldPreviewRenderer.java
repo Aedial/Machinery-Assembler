@@ -11,25 +11,34 @@ import javax.annotation.Nullable;
 
 import org.lwjgl.opengl.GL11;
 
+import net.minecraft.block.BlockLiquid;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BlockRendererDispatcher;
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GLAllocation;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.OpenGlHelper;
+import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.texture.TextureMap;
+import net.minecraft.client.renderer.tileentity.TileEntityRendererDispatcher;
+import net.minecraft.client.renderer.tileentity.TileEntitySpecialRenderer;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.client.renderer.vertex.VertexFormat;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.EnumBlockRenderType;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.World;
+import net.minecraftforge.client.ForgeHooksClient;
+import net.minecraftforge.fluids.IFluidBlock;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
@@ -50,6 +59,8 @@ public class InWorldPreviewRenderer {
     private static int hash = -1;
     private static int batchDList = -1;
 
+    private final PreviewWorld previewWorld = PreviewWorld.create();
+
     private StructureRenderHelper renderHelper = null;
     private StructurePattern matchArray = null;
     private BlockPos patternOffset = null;
@@ -64,7 +75,7 @@ public class InWorldPreviewRenderer {
     private int renderedLayer = -1;
 
     // When true, all layers are rendered even when the position is fixed.
-    // Baton-selected autobuild sets this to true (server places all blocks at once).
+    // Wrench-selected autobuild sets this to true (server places all blocks at once).
     // JEI manual preview sets this to false (layer-by-layer guided building).
     private boolean showAllLayers = false;
 
@@ -360,7 +371,7 @@ public class InWorldPreviewRenderer {
 
     /**
      * Check if the preview is in autobuild mode (all layers shown).
-     * When true, the preview was started by baton selection for server-side autobuild.
+     * When true, the preview was started by wrench selection for server-side autobuild.
      * When false, the preview was started by JEI for layer-by-layer guided building.
      */
     public boolean isAutobuildMode() {
@@ -520,7 +531,10 @@ public class InWorldPreviewRenderer {
      * Render the preview blocks in the world.
      */
     public void renderTranslucentBlocks() {
-        if (renderHelper == null) return;
+        if (renderHelper == null) {
+            previewWorld.clearPreview();
+            return;
+        }
 
         Minecraft.getMinecraft().renderEngine.bindTexture(TextureMap.LOCATION_BLOCKS_TEXTURE);
         GlStateManager.pushMatrix();
@@ -553,6 +567,11 @@ public class InWorldPreviewRenderer {
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GL11.GL_ONE_MINUS_DST_COLOR, GL11.GL_DST_COLOR);
         GlStateManager.callList(batchDList);
+
+        // Render TESRs (TileEntitySpecialRenderers) with the same ghost effect
+        // TESRs can't be put in display lists because they render dynamically
+        renderTESRs(partialTicks);
+
         Blending.DEFAULT.applyStateManager();
         GlStateManager.enableDepth();
 
@@ -561,6 +580,146 @@ public class InWorldPreviewRenderer {
         // Color desync on block rendering - prevent that, resync
         GlStateManager.color(1F, 1F, 1F, 1F);
         GL11.glColor4f(1F, 1F, 1F, 1F);
+    }
+
+    /**
+     * Render TileEntitySpecialRenderers for blocks that use them (skulls, beds, shulker boxes, etc.).
+     * These can't be cached in display lists because they render dynamically.
+     */
+    private void renderTESRs(float partialTicks) {
+        BlockPos move = getRenderOffset();
+        if (move == null || matchArray == null) {
+            previewWorld.clearPreview();
+            return;
+        }
+
+        World world = Minecraft.getMinecraft().world;
+        if (world == null) {
+            previewWorld.clearPreview();
+            return;
+        }
+
+        long snapTick = renderHelper.getSampleSnap();
+        updatePreviewWorld(move, world, snapTick);
+
+        RenderHelper.enableStandardItemLighting();
+
+        TileEntityRendererDispatcher dispatcher = TileEntityRendererDispatcher.instance;
+        World previousWorld = dispatcher.world;
+        dispatcher.setWorld(previewWorld);
+
+        try {
+            for (int pass = 0; pass <= 1; pass++) {
+                ForgeHooksClient.setRenderPass(pass);
+
+                for (Map.Entry<BlockPos, BlockRequirement> entry : matchArray.getPattern().entrySet()) {
+                    BlockPos relPos = entry.getKey();
+                    int layer = relPos.getY();
+                    if (fixedPosition != null && !showAllLayers && renderedLayer != layer) continue;
+
+                    BlockPos worldPos = relPos.add(move);
+                    BlockRequirement info = entry.getValue();
+
+                    // Skip if already placed correctly in world
+                    if (info.matches(world, worldPos, false)) continue;
+
+                    // Skip blocks without tile entities
+                    if (!info.hasTileEntity()) continue;
+
+                    IBlockState state = info.getSampleState(snapTick);
+                    if (state.getBlock() == Blocks.AIR) continue;
+                    if (!state.getBlock().hasTileEntity(state)) continue;
+
+                    TileEntity te = previewWorld.getTileEntity(worldPos);
+                    if (te == null) continue;
+                    if (!te.shouldRenderInPass(pass)) continue;
+
+                    TileEntitySpecialRenderer<TileEntity> renderer = dispatcher.getRenderer(te);
+                    if (renderer == null) continue;
+
+                    // Skip global renderers as they render relative to player position
+                    if (renderer.isGlobalRenderer(te)) continue;
+
+                    try {
+                        te.setWorld(previewWorld);
+                        te.setPos(worldPos);
+
+                        int light = previewWorld.getCombinedLight(worldPos, 0);
+                        int lightX = light % 65536;
+                        int lightY = light / 65536;
+                        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, lightX, lightY);
+                        GlStateManager.color(1F, 1F, 1F, 1F);
+
+                        // Keep the renderer's world-space coordinates intact while shrinking the model
+                        // around the block center so TESRs that use x/y/z directly still behave normally.
+                        double centerX = worldPos.getX() + 0.5;
+                        double centerY = worldPos.getY() + 0.5;
+                        double centerZ = worldPos.getZ() + 0.5;
+
+                        GlStateManager.pushMatrix();
+                        GlStateManager.translate(centerX, centerY, centerZ);
+                        GlStateManager.scale(0.75, 0.75, 0.75);
+                        GlStateManager.translate(-centerX, -centerY, -centerZ);
+
+                        // Preview TESRs are regular renders, not block-breaking overlays.
+                        dispatcher.render(te, worldPos.getX(), worldPos.getY(), worldPos.getZ(), partialTicks);
+
+                        GlStateManager.popMatrix();
+                    } catch (Exception ignored) {
+                        // Some TileEntities throw when rendered without proper world context
+                    }
+                }
+            }
+        } finally {
+            dispatcher.setWorld(previousWorld);
+        }
+
+        ForgeHooksClient.setRenderPass(-1);
+        RenderHelper.disableStandardItemLighting();
+    }
+
+    private void updatePreviewWorld(BlockPos move, World world, long snapTick) {
+        previewWorld.clearPreview();
+
+        for (Map.Entry<BlockPos, BlockRequirement> entry : matchArray.getPattern().entrySet()) {
+            BlockPos relPos = entry.getKey();
+            int layer = relPos.getY();
+            if (fixedPosition != null && !showAllLayers && renderedLayer != layer) continue;
+
+            BlockPos worldPos = relPos.add(move);
+            BlockRequirement info = entry.getValue();
+            if (info.matches(world, worldPos, false)) continue;
+
+            IBlockState state = info.getSampleState(snapTick);
+            if (state == null || state.getBlock() == Blocks.AIR) continue;
+
+            TileEntity te = null;
+            if (info.hasTileEntity() && state.getBlock().hasTileEntity(state)) {
+                te = createTileEntity(state, info, worldPos);
+            }
+
+            previewWorld.setPreviewState(worldPos, state, te);
+        }
+    }
+
+    /**
+     * Create a TileEntity for rendering from a block state.
+     */
+    @Nullable
+    private TileEntity createTileEntity(IBlockState state, BlockRequirement info, BlockPos pos) {
+        try {
+            TileEntity te = state.getBlock().createTileEntity(previewWorld, state);
+            if (te == null) return null;
+
+            te.setWorld(previewWorld);
+            te.setPos(pos);
+
+            info.applyPreviewTag(te);
+
+            return te;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private int hashBlocks() {
@@ -640,6 +799,11 @@ public class InWorldPreviewRenderer {
             IBlockState state = info.getSampleState(snapTick);
             if (state.getBlock() == Blocks.AIR) continue;
 
+            EnumBlockRenderType renderType = state.getRenderType();
+            boolean isFluid = renderType == EnumBlockRenderType.LIQUID ||
+                state.getBlock() instanceof BlockLiquid || state.getBlock() instanceof IFluidBlock;
+            if (!isFluid && !BlockStateRenderValidator.canRender(state)) continue;
+
             IBlockState actualState = state.getBlock().getActualState(state, access, worldPos);
 
             GlStateManager.pushMatrix();
@@ -716,6 +880,7 @@ public class InWorldPreviewRenderer {
         relativeRight = 0;
         relativeUp = 0;
         structureCenter = BlockPos.ORIGIN;
+        previewWorld.clearPreview();
     }
 
     public void unloadWorld() {

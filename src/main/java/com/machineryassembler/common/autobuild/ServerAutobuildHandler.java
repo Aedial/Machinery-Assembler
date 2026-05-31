@@ -227,8 +227,7 @@ public class ServerAutobuildHandler {
             // Skip if already correct
             if (requirement.matches(world, worldPos, false)) continue;
 
-            IBlockState targetState = requirement.getSampleState();
-            String key = BlockSourceUtils.stateToKey(targetState);
+            String key = BlockSourceUtils.requirementToKey(requirement);
             required.merge(key, 1, Integer::sum);
         }
 
@@ -390,7 +389,7 @@ public class ServerAutobuildHandler {
             }
 
             IBlockState targetState = requirement.getSampleState();
-            String key = BlockSourceUtils.stateToKey(targetState);
+            String key = BlockSourceUtils.requirementToKey(requirement);
 
             // Check if we have the block
             int available = remaining.getOrDefault(key, 0);

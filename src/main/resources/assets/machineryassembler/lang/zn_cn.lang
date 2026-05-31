@@ -47,32 +47,32 @@ key.machineryassembler.move_right=向右移动预览
 key.machineryassembler.move_up=向上移动预览
 key.machineryassembler.move_down=向下移动预览
 
-# Assembler's Baton Item
-item.machineryassembler.assembler_baton.name=组装师的指挥棒
-item.machineryassembler.assembler_baton.selected=已选择：%s
-item.machineryassembler.assembler_baton.clear_hint=按Escape以清除选择
-item.machineryassembler.assembler_baton.no_selection=右击选择一个结构
-item.machineryassembler.assembler_baton.focus=焦点方块：%s
+# Assembler's Wrench Item
+item.machineryassembler.assembler_wrench.name=组装师的指挥棒
+item.machineryassembler.assembler_wrench.selected=已选择：%s
+item.machineryassembler.assembler_wrench.clear_hint=按Escape以清除选择
+item.machineryassembler.assembler_wrench.no_selection=右击选择一个结构
+item.machineryassembler.assembler_wrench.focus=焦点方块：%s
 
-# Baton GUI
-gui.machineryassembler.baton.no_selection=从列表中选择一个结构
-gui.machineryassembler.baton.double_click_hint=双击选择以用于自动建造
-gui.machineryassembler.baton.i18n.on=显示：本地化名称
-gui.machineryassembler.baton.i18n.off=显示：注册ID
+# Wrench GUI
+gui.machineryassembler.wrench.no_selection=从列表中选择一个结构
+gui.machineryassembler.wrench.double_click_hint=双击选择以用于自动建造
+gui.machineryassembler.wrench.i18n.on=显示：本地化名称
+gui.machineryassembler.wrench.i18n.off=显示：注册ID
 
-# Baton Messages
-message.machineryassembler.baton.selected=结构已选择。右击进行建造。
-message.machineryassembler.baton.invalid_structure=所选结构已不存在。
-message.machineryassembler.baton.fix_first=请先固定预览位置（预览浮动时右击）。
-message.machineryassembler.baton.building=正在发送自动建造请求……
-message.machineryassembler.baton.obstructed=建造被阻挡：检测到%d处阻碍（已用红色/橙色高亮）。
-message.machineryassembler.baton.missing_blocks=总计缺少%d个方块。
-message.machineryassembler.baton.missing_entry=  - %s x%d
-message.machineryassembler.baton.missing_more=  ……以及%d种类型
-message.machineryassembler.baton.missing_aborted=建造已中止：方块不足（部分建造已被禁用）。
-message.machineryassembler.baton.build_complete=自动建造完成！已放置%d个方块。
-message.machineryassembler.baton.partial_build=部分建造完成：已放置%d个方块，失败了%d个。
-message.machineryassembler.baton.build_failed=自动建造失败。
+# Wrench Messages
+message.machineryassembler.wrench.selected=结构已选择。右击进行建造。
+message.machineryassembler.wrench.invalid_structure=所选结构已不存在。
+message.machineryassembler.wrench.fix_first=请先固定预览位置（预览浮动时右击）。
+message.machineryassembler.wrench.building=正在发送自动建造请求……
+message.machineryassembler.wrench.obstructed=建造被阻挡：检测到%d处阻碍（已用红色/橙色高亮）。
+message.machineryassembler.wrench.missing_blocks=总计缺少%d个方块。
+message.machineryassembler.wrench.missing_entry=  - %s x%d
+message.machineryassembler.wrench.missing_more=  ……以及%d种类型
+message.machineryassembler.wrench.missing_aborted=建造已中止：方块不足（部分建造已被禁用）。
+message.machineryassembler.wrench.build_complete=自动建造完成！已放置%d个方块。
+message.machineryassembler.wrench.partial_build=部分建造完成：已放置%d个方块，失败了%d个。
+message.machineryassembler.wrench.build_failed=自动建造失败。
 
 # Config
 config.machineryassembler.consumeBlocksInCreative=创造模式下消耗方块

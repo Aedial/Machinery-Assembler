@@ -20,10 +20,10 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 import com.machineryassembler.MachineryAssembler;
 import com.machineryassembler.client.ClientProxy;
-import com.machineryassembler.client.render.BatonHighlightRenderer;
+import com.machineryassembler.client.render.WrenchHighlightRenderer;
 import com.machineryassembler.client.render.StructureRenderContext;
 import com.machineryassembler.common.autobuild.BlockSourceUtils;
-import com.machineryassembler.common.item.ItemAssemblerBaton;
+import com.machineryassembler.common.item.ItemAssemblerWrench;
 import com.machineryassembler.common.network.NetworkHandler;
 import com.machineryassembler.common.network.PacketAutobuildMissingBlocks;
 import com.machineryassembler.common.network.PacketAutobuildObstruction;
@@ -53,12 +53,12 @@ public class AutobuildHandler {
      * Select a structure for autobuild.
      * Shows ghost preview in-world, optionally offset to align focus block with anchor position.
      *
-     * @param batonStack The baton item stack
+     * @param wrenchStack The wrench item stack
      * @param structureId The structure to select
      * @param focusBlock The block type used as anchor (for filtering, may be null)
      * @param anchorPos The world position of the anchor block (for offset, may be null)
      */
-    public static void selectStructure(ItemStack batonStack, ResourceLocation structureId,
+    public static void selectStructure(ItemStack wrenchStack, ResourceLocation structureId,
                                        @Nullable IBlockState focusBlock, @Nullable BlockPos anchorPos) {
         Structure structure = StructureRegistry.getRegistry().getStructure(structureId);
         if (structure == null) {
@@ -66,9 +66,9 @@ public class AutobuildHandler {
             return;
         }
 
-        ItemAssemblerBaton.setSelectedStructure(batonStack, structureId);
+        ItemAssemblerWrench.setSelectedStructure(wrenchStack, structureId);
 
-        if (focusBlock != null) ItemAssemblerBaton.setFocusBlock(batonStack, focusBlock);
+        if (focusBlock != null) ItemAssemblerWrench.setFocusBlock(wrenchStack, focusBlock);
 
         currentStructure = structureId;
         currentPattern = new StructurePattern(structure.getPattern());
@@ -87,7 +87,7 @@ public class AutobuildHandler {
             EntityPlayer player = Minecraft.getMinecraft().player;
 
             if (player != null) {
-                player.sendMessage(new TextComponentTranslation("message.machineryassembler.baton.selected"));
+                player.sendMessage(new TextComponentTranslation("message.machineryassembler.wrench.selected"));
             }
         }
     }
@@ -96,12 +96,12 @@ public class AutobuildHandler {
      * Clear the current selection.
      * Called when pressing Escape.
      */
-    public static void clearSelection(ItemStack batonStack) {
-        ItemAssemblerBaton.clearSelectedStructure(batonStack);
+    public static void clearSelection(ItemStack wrenchStack) {
+        ItemAssemblerWrench.clearSelectedStructure(wrenchStack);
         currentStructure = null;
         currentPattern = null;
         ClientProxy.previewRenderer.cancelPreview();
-        BatonHighlightRenderer.clearHighlights();
+        WrenchHighlightRenderer.clearHighlights();
 
         EntityPlayer player = Minecraft.getMinecraft().player;
 
@@ -138,17 +138,17 @@ public class AutobuildHandler {
      *
      * @param player The player
      * @param clickedPos The clicked position (can be null if triggered from air)
-     * @param batonStack The baton item stack
+     * @param wrenchStack The wrench item stack
      * @return true if request was sent, false if failed
      */
-    public static boolean attemptAutobuild(EntityPlayer player, @Nullable BlockPos clickedPos, ItemStack batonStack) {
-        ResourceLocation structureId = ItemAssemblerBaton.getSelectedStructure(batonStack);
+    public static boolean attemptAutobuild(EntityPlayer player, @Nullable BlockPos clickedPos, ItemStack wrenchStack) {
+        ResourceLocation structureId = ItemAssemblerWrench.getSelectedStructure(wrenchStack);
         if (structureId == null) return false;
 
         Structure structure = StructureRegistry.getRegistry().getStructure(structureId);
 
         if (structure == null) {
-            player.sendMessage(new TextComponentTranslation("message.machineryassembler.baton.invalid_structure"));
+            player.sendMessage(new TextComponentTranslation("message.machineryassembler.wrench.invalid_structure"));
 
             return false;
         }
@@ -156,16 +156,16 @@ public class AutobuildHandler {
         // Get the fixed position from the preview renderer
         BlockPos origin = ClientProxy.previewRenderer.getFixedPosition();
         if (origin == null) {
-            player.sendMessage(new TextComponentTranslation("message.machineryassembler.baton.fix_first"));
+            player.sendMessage(new TextComponentTranslation("message.machineryassembler.wrench.fix_first"));
 
             return false;
         }
 
         // Clear any existing highlights from previous attempts
-        BatonHighlightRenderer.clearHighlights();
+        WrenchHighlightRenderer.clearHighlights();
 
         // Send request to server
-        player.sendMessage(new TextComponentTranslation("message.machineryassembler.baton.building"));
+        player.sendMessage(new TextComponentTranslation("message.machineryassembler.wrench.building"));
         NetworkHandler.INSTANCE.sendToServer(new PacketAutobuildRequest(structureId, origin));
 
         // Fully tear down the autobuild state. The anchor position served its purpose
@@ -176,8 +176,8 @@ public class AutobuildHandler {
         currentStructure = null;
         currentPattern = null;
         ClientProxy.previewRenderer.cancelPreview();
-        ItemAssemblerBaton.clearSelectedStructure(batonStack);
-        ItemAssemblerBaton.clearLastAnchorPos(batonStack);
+        ItemAssemblerWrench.clearSelectedStructure(wrenchStack);
+        ItemAssemblerWrench.clearLastAnchorPos(wrenchStack);
 
         return true;
     }
@@ -191,12 +191,12 @@ public class AutobuildHandler {
     public static void handleObstructionResponse(PacketAutobuildObstruction packet) {
         List<BlockPos> obstructed = packet.getObstructedPositions();
 
-        BatonHighlightRenderer.addHighlights(obstructed, BatonHighlightRenderer.HighlightType.OBSTRUCTION);
+        WrenchHighlightRenderer.addHighlights(obstructed, WrenchHighlightRenderer.HighlightType.OBSTRUCTION);
 
         EntityPlayer player = Minecraft.getMinecraft().player;
 
         if (player != null) {
-            player.sendMessage(new TextComponentTranslation("message.machineryassembler.baton.obstructed", obstructed.size()));
+            player.sendMessage(new TextComponentTranslation("message.machineryassembler.wrench.obstructed", obstructed.size()));
         }
 
         // Clear selection since build cannot proceed
@@ -213,7 +213,7 @@ public class AutobuildHandler {
         if (player == null) return;
 
         if (packet.isAborted()) {
-            player.sendMessage(new TextComponentTranslation("message.machineryassembler.baton.missing_aborted"));
+            player.sendMessage(new TextComponentTranslation("message.machineryassembler.wrench.missing_aborted"));
 
             // Clear selection since build cannot proceed
             clearCurrentSelection();
@@ -221,12 +221,12 @@ public class AutobuildHandler {
 
         // Show missing blocks to player
         int totalMissing = missing.values().stream().mapToInt(Integer::intValue).sum();
-        player.sendMessage(new TextComponentTranslation("message.machineryassembler.baton.missing_blocks", totalMissing));
+        player.sendMessage(new TextComponentTranslation("message.machineryassembler.wrench.missing_blocks", totalMissing));
 
         // Show details
         for (Map.Entry<String, Integer> entry : missing.entrySet()) {
             String displayName = BlockSourceUtils.getDisplayName(entry.getKey());
-            String key = "message.machineryassembler.baton.missing_entry";
+            String key = "message.machineryassembler.wrench.missing_entry";
             player.sendMessage(new TextComponentTranslation(key, displayName, entry.getValue()));
         }
     }
@@ -241,16 +241,16 @@ public class AutobuildHandler {
 
         switch (packet.getResult()) {
             case SUCCESS:
-                player.sendMessage(new TextComponentTranslation("message.machineryassembler.baton.build_complete", packet.getPlacedCount()));
+                player.sendMessage(new TextComponentTranslation("message.machineryassembler.wrench.build_complete", packet.getPlacedCount()));
                 break;
 
             case PARTIAL_SUCCESS:
-                player.sendMessage(new TextComponentTranslation("message.machineryassembler.baton.partial_build",
+                player.sendMessage(new TextComponentTranslation("message.machineryassembler.wrench.partial_build",
                     packet.getPlacedCount(), packet.getFailedCount()));
                 break;
 
             case FAILED:
-                player.sendMessage(new TextComponentTranslation("message.machineryassembler.baton.build_failed"));
+                player.sendMessage(new TextComponentTranslation("message.machineryassembler.wrench.build_failed"));
                 break;
         }
     }
@@ -262,29 +262,29 @@ public class AutobuildHandler {
         List<PlacementIssue> issues = packet.getIssues();
 
         for (PlacementIssue issue : issues) {
-            BatonHighlightRenderer.HighlightType highlightType;
+            WrenchHighlightRenderer.HighlightType highlightType;
 
             switch (issue.getType()) {
                 case WRONG_BLOCK:
-                    highlightType = BatonHighlightRenderer.HighlightType.WRONG_BLOCK;
+                    highlightType = WrenchHighlightRenderer.HighlightType.WRONG_BLOCK;
                     break;
 
                 case CORRECT_EXTERNAL:
-                    highlightType = BatonHighlightRenderer.HighlightType.CORRECT_EXTERNAL;
+                    highlightType = WrenchHighlightRenderer.HighlightType.CORRECT_EXTERNAL;
                     break;
 
                 case PLACEMENT_FAILED:
                 default:
-                    highlightType = BatonHighlightRenderer.HighlightType.OBSTRUCTION;
+                    highlightType = WrenchHighlightRenderer.HighlightType.OBSTRUCTION;
                     break;
             }
 
-            BatonHighlightRenderer.addHighlight(issue.getPos(), highlightType);
+            WrenchHighlightRenderer.addHighlight(issue.getPos(), highlightType);
         }
     }
 
     /**
-     * Clear selection without needing the baton stack.
+     * Clear selection without needing the wrench stack.
      * Used by response handlers.
      */
     private static void clearCurrentSelection() {

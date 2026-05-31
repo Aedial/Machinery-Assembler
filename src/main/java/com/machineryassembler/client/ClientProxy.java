@@ -7,7 +7,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 import com.machineryassembler.client.integration.jei.JEIScrollHandler;
 import com.machineryassembler.client.integration.jei.MAJEIPlugin;
-import com.machineryassembler.client.render.BatonHighlightRenderer;
+import com.machineryassembler.client.render.WrenchHighlightRenderer;
 import com.machineryassembler.client.render.InWorldPreviewRenderer;
 import com.machineryassembler.common.CommonProxy;
 
@@ -16,7 +16,7 @@ import com.machineryassembler.common.CommonProxy;
 public class ClientProxy extends CommonProxy {
 
     public static final InWorldPreviewRenderer previewRenderer = new InWorldPreviewRenderer();
-    public static final BatonHighlightRenderer highlightRenderer = new BatonHighlightRenderer();
+    public static final WrenchHighlightRenderer highlightRenderer = new WrenchHighlightRenderer();
 
     private final PreviewKeybindHandler keybindHandler = new PreviewKeybindHandler();
     private final PreviewInteractionHandler interactionHandler = new PreviewInteractionHandler();
