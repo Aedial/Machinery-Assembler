@@ -48,7 +48,7 @@ key.machineryassembler.move_up=向上移动预览
 key.machineryassembler.move_down=向下移动预览
 
 # Assembler's Wrench Item
-item.machineryassembler.assembler_wrench.name=组装师的指挥棒
+item.machineryassembler.assembler_wrench.name=组装师扳手
 item.machineryassembler.assembler_wrench.selected=已选择：%s
 item.machineryassembler.assembler_wrench.clear_hint=按Escape以清除选择
 item.machineryassembler.assembler_wrench.no_selection=右击选择一个结构
