@@ -167,37 +167,41 @@ public class StructurePattern {
         List<Integer> counts = new LinkedList<>();
 
         pattern.forEach((pos, info) -> {
-            List<ItemStack> infoIngList = info.getIngredientList(validateRendering);
-            if (infoIngList.isEmpty()) return;
-
-            // Check if this exact ingredient list already exists (same items in same order)
-            int index = 0;
-            for (final List<ItemStack> existingList : ingredient) {
-                if (ingredientListsMatch(infoIngList, existingList)) {
-                    // Increment count for all items in the list
-                    int count = counts.get(index);
-                    counts.set(index, count + 1);
-
-                    for (ItemStack stack : existingList) stack.setCount(count + 1);
-                    return;
-                }
-
-                index++;
+            for (List<ItemStack> infoIngList : info.getIngredientGroups(validateRendering)) {
+                addIngredientList(ingredient, counts, infoIngList);
             }
-
-            // New ingredient, add it with count 1
-            List<ItemStack> copiedList = new LinkedList<>();
-            for (ItemStack stack : infoIngList) {
-                ItemStack copy = stack.copy();
-                copy.setCount(1);
-                copiedList.add(copy);
-            }
-
-            ingredient.add(copiedList);
-            counts.add(1);
         });
 
         return ingredient;
+    }
+
+    private static void addIngredientList(List<List<ItemStack>> ingredient, List<Integer> counts,
+                                          List<ItemStack> infoIngList) {
+        if (infoIngList.isEmpty()) return;
+
+        // Check if this exact ingredient list already exists (same items in same order)
+        int index = 0;
+        for (final List<ItemStack> existingList : ingredient) {
+            if (ingredientListsMatch(infoIngList, existingList)) {
+                int count = counts.get(index) + 1;
+                counts.set(index, count);
+
+                for (ItemStack stack : existingList) stack.setCount(count);
+                return;
+            }
+
+            index++;
+        }
+
+        List<ItemStack> copiedList = new LinkedList<>();
+        for (ItemStack stack : infoIngList) {
+            ItemStack copy = stack.copy();
+            copy.setCount(1);
+            copiedList.add(copy);
+        }
+
+        ingredient.add(copiedList);
+        counts.add(1);
     }
 
     /**

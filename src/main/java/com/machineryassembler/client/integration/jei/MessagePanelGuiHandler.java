@@ -44,6 +44,7 @@ public class MessagePanelGuiHandler implements IGlobalGuiHandler {
     /**
      * Check if the current JEI screen is showing our structure preview category.
      */
+    @SuppressWarnings("rawtypes")
     private boolean isStructurePreviewCategoryActive() {
         if (reflectionFailed) return true; // Fall back to always returning areas if reflection fails
 

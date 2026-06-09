@@ -47,6 +47,9 @@ public class GuiWrenchSelector extends GuiScreen {
 
     private static final int BUTTON_I18N_TOGGLE = 0;
 
+    // Ratio of left panel width on total width (for layout calculations)
+    private static final float PANEL_RATIO = 1/3f;
+
     private final ItemStack wrenchStack;
     private final IBlockState anchorState;
     private final BlockPos anchorPos;
@@ -81,7 +84,7 @@ public class GuiWrenchSelector extends GuiScreen {
     public void initGui() {
         super.initGui();
 
-        leftPanelWidth = width / 4;
+        leftPanelWidth = (int) (width * PANEL_RATIO);
 
         // Filter field
         filterField = new GuiTextField(0, fontRenderer, 10, 10, leftPanelWidth - 20, 14);
@@ -207,22 +210,22 @@ public class GuiWrenchSelector extends GuiScreen {
         int mouseY = height - Mouse.getEventY() * height / mc.displayHeight - 1;
         int wheel = Mouse.getDWheel();
 
-        if (wheel != 0) {
-            if (isInLeftPanel(mouseX)) {
-                listWidget.handleScroll(wheel);
-            } else if (isInPreviewArea(mouseX, mouseY) && previewContext != null) {
-                if (previewContext.doesRender3D()) {
-                    if (wheel > 0) {
-                        previewContext.zoomIn();
-                    } else {
-                        previewContext.zoomOut();
-                    }
+        if (wheel == 0) return;
+
+        if (isInLeftPanel(mouseX)) {
+            listWidget.handleScroll(wheel);
+        } else if (isInPreviewArea(mouseX, mouseY) && previewContext != null) {
+            if (previewContext.doesRender3D()) {
+                if (wheel > 0) {
+                    previewContext.zoomIn();
                 } else {
-                    if (wheel > 0 && previewContext.hasSliceUp()) {
-                        previewContext.sliceUp();
-                    } else if (wheel < 0 && previewContext.hasSliceDown()) {
-                        previewContext.sliceDown();
-                    }
+                    previewContext.zoomOut();
+                }
+            } else {
+                if (wheel > 0 && previewContext.hasSliceUp()) {
+                    previewContext.sliceUp();
+                } else if (wheel < 0 && previewContext.hasSliceDown()) {
+                    previewContext.sliceDown();
                 }
             }
         }
@@ -500,7 +503,7 @@ public class GuiWrenchSelector extends GuiScreen {
         }
 
         public void onMouseDrag(int mouseY) {
-            // Could implement scrollbar dragging here
+            // TODO: Could implement scrollbar dragging here
         }
 
         public void onMouseReleased() {

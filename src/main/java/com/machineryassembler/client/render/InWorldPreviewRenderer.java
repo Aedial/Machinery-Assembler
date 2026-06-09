@@ -21,6 +21,7 @@ import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.Tessellator;
+import net.minecraft.client.renderer.block.model.IBakedModel;
 import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.client.renderer.tileentity.TileEntityRendererDispatcher;
 import net.minecraft.client.renderer.tileentity.TileEntitySpecialRenderer;
@@ -30,6 +31,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.BlockRenderLayer;
 import net.minecraft.util.EnumBlockRenderType;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
@@ -770,17 +772,7 @@ public class InWorldPreviewRenderer {
         Tessellator tes = Tessellator.getInstance();
         BufferBuilder vb = tes.getBuffer();
         StructurePattern matchPattern = matchArray;
-
-        DummyBlockAccess access = new DummyBlockAccess();
         long snapTick = renderHelper.getSampleSnap();
-
-        // Populate access with blocks
-        for (Map.Entry<BlockPos, BlockRequirement> entry : matchPattern.getPattern().entrySet()) {
-            BlockPos relPos = entry.getKey();
-            BlockPos worldPos = relPos.add(move);
-            IBlockState state = entry.getValue().getSampleState(snapTick);
-            access.setBlockState(worldPos, state);
-        }
 
         BlockRendererDispatcher brd = Minecraft.getMinecraft().getBlockRendererDispatcher();
         VertexFormat blockFormat = DefaultVertexFormats.BLOCK;
@@ -804,18 +796,36 @@ public class InWorldPreviewRenderer {
                 state.getBlock() instanceof BlockLiquid || state.getBlock() instanceof IFluidBlock;
             if (!isFluid && !BlockStateRenderValidator.canRender(state)) continue;
 
-            IBlockState actualState = state.getBlock().getActualState(state, access, worldPos);
+            OffsetBlockAccess access = new OffsetBlockAccess(previewWorld, worldPos);
+            IBlockState actualState = PreviewRenderStateResolver.resolveActual(state, access, BlockPos.ORIGIN);
+            IBlockState renderState = PreviewRenderStateResolver.resolve(state, access, BlockPos.ORIGIN);
 
-            GlStateManager.pushMatrix();
-            GlStateManager.translate(worldPos.getX(), worldPos.getY(), worldPos.getZ());
-            GlStateManager.translate(0.125, 0.125, 0.125);
-            GlStateManager.scale(0.75, 0.75, 0.75);
-            vb.begin(GL11.GL_QUADS, blockFormat);
-            brd.renderBlock(actualState, BlockPos.ORIGIN, access, vb);
-            tes.draw();
-            GlStateManager.popMatrix();
+            for (BlockRenderLayer renderLayer : BlockRenderLayer.values()) {
+                if (!state.getBlock().canRenderInLayer(state, renderLayer)) continue;
+
+                ForgeHooksClient.setRenderLayer(renderLayer);
+                GlStateManager.pushMatrix();
+                GlStateManager.translate(worldPos.getX(), worldPos.getY(), worldPos.getZ());
+                GlStateManager.translate(0.125, 0.125, 0.125);
+                GlStateManager.scale(0.75, 0.75, 0.75);
+                vb.begin(GL11.GL_QUADS, blockFormat);
+
+                if (renderType == EnumBlockRenderType.LIQUID) {
+                    brd.renderBlock(state, BlockPos.ORIGIN, access, vb);
+                } else {
+                    IBakedModel model = brd.getModelForState(actualState);
+                    brd.getBlockModelRenderer().renderModel(access, model, renderState, BlockPos.ORIGIN, vb, true);
+                }
+
+                tes.draw();
+                GlStateManager.popMatrix();
+            }
+
+            ForgeHooksClient.setRenderLayer(null);
         }
 
+
+        previewWorld.finalizePreviewTileEntities();
         GlStateManager.glEndList();
     }
 

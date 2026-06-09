@@ -4,6 +4,7 @@
 package com.machineryassembler.client.render;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -65,7 +66,6 @@ import com.machineryassembler.common.util.BlockPos2ValueMap;
 /**
  * Minimal client-only world used to back preview tile entities and state queries.
  */
-@SuppressWarnings("removal")
 @SideOnly(Side.CLIENT)
 public class PreviewWorld extends World {
 
@@ -195,6 +195,16 @@ public class PreviewWorld extends World {
         setTileEntity(pos, tileEntity);
     }
 
+    public void finalizePreviewTileEntities() {
+        if (previewTileEntities == null || previewTileEntities.isEmpty()) return;
+
+        List<TileEntity> tileEntities = new ArrayList<>(previewTileEntities.values());
+
+        for (TileEntity tileEntity : tileEntities) preparePreviewTileEntity(tileEntity, false);
+        for (TileEntity tileEntity : tileEntities) refreshAppliedEnergisticsPreviewTileEntity(tileEntity);
+        for (TileEntity tileEntity : tileEntities) preparePreviewTileEntity(tileEntity, true);
+    }
+
     private void removePreviewState(BlockPos pos) {
         previewPositions.remove(pos);
         previewStates.remove(pos);
@@ -277,6 +287,56 @@ public class PreviewWorld extends World {
         loadedTileEntityList.add(tileEntityIn);
 
         if (tileEntityIn instanceof ITickable) tickableTileEntities.add(tileEntityIn);
+    }
+
+    private void preparePreviewTileEntity(@Nullable TileEntity tileEntity, boolean syncUpdateTag) {
+        if (tileEntity == null) return;
+
+        tileEntity.setWorld(this);
+        tileEntity.setPos(tileEntity.getPos());
+
+        if (!isAppliedEnergisticsTile(tileEntity)) return;
+
+        if (!syncUpdateTag) {
+            invokeNoArgMethod(tileEntity, "onReady");
+            return;
+        }
+
+        try {
+            NBTTagCompound updateTag = tileEntity.getUpdateTag();
+            if (updateTag == null || updateTag.isEmpty()) return;
+
+            tileEntity.handleUpdateTag(updateTag);
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void refreshAppliedEnergisticsPreviewTileEntity(@Nullable TileEntity tileEntity) {
+        if (tileEntity == null || !isAppliedEnergisticsTile(tileEntity)) return;
+
+        Object cableBus = invokeOptionalNoArgMethod(tileEntity, "getCableBus");
+        if (cableBus == null) return;
+
+        invokeNoArgMethod(cableBus, "updateConnections");
+    }
+
+    private static boolean isAppliedEnergisticsTile(TileEntity tileEntity) {
+        return tileEntity.getClass().getName().startsWith("appeng.tile.");
+    }
+
+    private static void invokeNoArgMethod(Object target, String methodName) {
+        invokeOptionalNoArgMethod(target, methodName);
+    }
+
+    @Nullable
+    private static Object invokeOptionalNoArgMethod(Object target, String methodName) {
+        try {
+            Method method = target.getClass().getMethod(methodName);
+            method.setAccessible(true);
+            return method.invoke(target);
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     @Override

@@ -36,6 +36,7 @@ gui.machineryassembler.output=Output
 # Example Structure Messages (for demonstration)
 machineryassembler.message.example=This is an example info message. Diamonds should be thrown on the structure for it to work!
 machineryassembler.message.warning=This is a warning message! You should be careful, this structure will explode in 3... 2... 1...
+machineryassembler.message.cm3_metaitem_attachment=Attached item shown here is provided by the original CM3 structure, replace this message by a more relevant one.
 
 # Keybinds
 key.categories.machineryassembler=Machinery Assembler

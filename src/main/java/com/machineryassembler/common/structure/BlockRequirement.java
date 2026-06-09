@@ -25,10 +25,12 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
+import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 import com.machineryassembler.client.render.BlockStateRenderValidator;
+import com.machineryassembler.client.render.PreviewWorld;
 import com.machineryassembler.common.util.BlockStackUtils;
 import com.machineryassembler.common.util.nbt.NBTMatchingHelper;
 
@@ -155,6 +157,32 @@ public class BlockRequirement {
     public List<ItemStack> getIngredientList(boolean validateRendering) {
         List<ItemStack> list = new ArrayList<>();
 
+        for (List<ItemStack> ingredientGroup : getIngredientGroups(validateRendering)) {
+            for (ItemStack stack : ingredientGroup) {
+                if (stack.isEmpty() || containsMatchingStack(list, stack)) continue;
+
+                list.add(stack);
+            }
+        }
+
+        return list;
+    }
+
+    /**
+     * Get the ingredient groups for this requirement.
+     * Each inner list represents alternatives for a single required item slot.
+     */
+    public List<List<ItemStack>> getIngredientGroups(boolean validateRendering) {
+        List<ItemStack> multipartStacks = getMultipartIngredientStacks(validateRendering);
+        if (!multipartStacks.isEmpty()) {
+            List<List<ItemStack>> ingredientGroups = new ArrayList<>();
+            for (ItemStack stack : multipartStacks) ingredientGroups.add(Collections.singletonList(stack));
+
+            return ingredientGroups;
+        }
+
+        List<ItemStack> list = new ArrayList<>();
+
         for (IBlockState state : samples) {
             // Skip states with missing models if validation is requested
             if (validateRendering && !canStateRender(state)) continue;
@@ -173,7 +201,11 @@ public class BlockRequirement {
             if (!found) list.add(stack);
         }
 
-        return list;
+        if (list.isEmpty()) return Collections.emptyList();
+
+        List<List<ItemStack>> ingredientGroups = new ArrayList<>();
+        ingredientGroups.add(list);
+        return ingredientGroups;
     }
 
     /**
@@ -311,13 +343,14 @@ public class BlockRequirement {
         try {
             // Use the client world if available - some blocks need world context for getPickBlock
             World world = null;
-            if (net.minecraftforge.fml.common.FMLCommonHandler.instance().getSide().isClient()) {
-                world = net.minecraft.client.Minecraft.getMinecraft().world;
+            if (FMLCommonHandler.instance().getSide().isClient()) {
+                world = createPreviewPickWorld(state, previewTag);
+                if (world == null) world = Minecraft.getMinecraft().world;
             }
 
             ItemStack pickStack = block.getPickBlock(
                 state,
-                new RayTraceResult(RayTraceResult.Type.BLOCK, Vec3d.ZERO, EnumFacing.UP, BlockPos.ORIGIN),
+                new RayTraceResult(RayTraceResult.Type.BLOCK, new Vec3d(0.5, 0.5, 0.5), EnumFacing.UP, BlockPos.ORIGIN),
                 world,
                 BlockPos.ORIGIN,
                 null   // Player - some blocks don't need it
@@ -331,10 +364,74 @@ public class BlockRequirement {
         return BlockStackUtils.getStackFromBlockState(state, previewTag);
     }
 
+    private List<ItemStack> getMultipartIngredientStacks(boolean validateRendering) {
+        if (previewTag == null || previewTag.isEmpty()) return Collections.emptyList();
+
+        List<ItemStack> multipartStacks = new ArrayList<>();
+
+        for (String key : previewTag.getKeySet()) {
+            if (!key.startsWith("def:")) continue;
+
+            NBTTagCompound partTag = previewTag.getCompoundTag(key);
+            if (partTag == null || partTag.isEmpty()) continue;
+
+            ItemStack partStack = new ItemStack(partTag);
+            if (partStack.isEmpty()) continue;
+            if (validateRendering && !canStackRender(partStack)) continue;
+            if (containsMatchingStack(multipartStacks, partStack)) continue;
+
+            multipartStacks.add(partStack);
+        }
+
+        return multipartStacks;
+    }
+
+    @SideOnly(Side.CLIENT)
+    private boolean canStackRender(ItemStack stack) {
+        return BlockStateRenderValidator.canRenderItem(stack);
+    }
+
+    @Nullable
+    @SideOnly(Side.CLIENT)
+    private static World createPreviewPickWorld(IBlockState state, @Nullable NBTTagCompound previewTag) {
+        if (previewTag == null || previewTag.isEmpty() || !state.getBlock().hasTileEntity(state)) return null;
+
+        try {
+            PreviewWorld previewWorld = PreviewWorld.create();
+            TileEntity tileEntity = state.getBlock().createTileEntity(previewWorld, state);
+            if (tileEntity == null) return null;
+
+            tileEntity.setWorld(previewWorld);
+            tileEntity.setPos(BlockPos.ORIGIN);
+            applyPreviewTag(tileEntity, previewTag);
+            previewWorld.setPreviewState(BlockPos.ORIGIN, state, tileEntity);
+            return previewWorld;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static void applyPreviewTag(TileEntity tileEntity, NBTTagCompound previewTag) {
+        NBTTagCompound nbt = new NBTTagCompound();
+        tileEntity.writeToNBT(nbt);
+
+        for (String key : previewTag.getKeySet()) nbt.setTag(key, previewTag.getTag(key));
+
+        tileEntity.readFromNBT(nbt);
+    }
+
     private static boolean stacksMatch(ItemStack a, ItemStack b) {
         if (a.isEmpty() || b.isEmpty()) return false;
         if (a.getItem() != b.getItem()) return false;
 
         return a.getMetadata() == b.getMetadata();
+    }
+
+    private static boolean containsMatchingStack(List<ItemStack> stacks, ItemStack target) {
+        for (ItemStack existing : stacks) {
+            if (stacksMatch(existing, target)) return true;
+        }
+
+        return false;
     }
 }

@@ -23,6 +23,7 @@ import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.Tessellator;
+import net.minecraft.client.renderer.block.model.IBakedModel;
 import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.client.renderer.tileentity.TileEntityRendererDispatcher;
 import net.minecraft.client.renderer.tileentity.TileEntitySpecialRenderer;
@@ -30,6 +31,7 @@ import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.client.renderer.vertex.VertexFormat;
 import net.minecraft.init.Blocks;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.BlockRenderLayer;
 import net.minecraft.util.EnumBlockRenderType;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
@@ -53,7 +55,6 @@ import com.machineryassembler.common.structure.StructurePattern;
 public class StructureRenderHelper {
 
     private final StructurePattern pattern;
-    private final DummyBlockAccess renderAccess;
     private final PreviewWorld previewWorld;
     private final Map<BlockPos, RenderData> renderDataMap = new HashMap<>();
 
@@ -68,7 +69,6 @@ public class StructureRenderHelper {
 
     public StructureRenderHelper(StructurePattern pattern) {
         this.pattern = pattern;
-        this.renderAccess = new DummyBlockAccess();
         this.previewWorld = PreviewWorld.create();
         buildRenderData();
         resetRotation();
@@ -76,7 +76,6 @@ public class StructureRenderHelper {
 
     private void buildRenderData() {
         renderDataMap.clear();
-        renderAccess.clear();
         previewWorld.clearPreview();
 
         for (Map.Entry<BlockPos, BlockRequirement> entry : pattern.getPattern().entrySet()) {
@@ -202,38 +201,49 @@ public class StructureRenderHelper {
         Tessellator tes = Tessellator.getInstance();
         BufferBuilder vb = tes.getBuffer();
 
-        // Render blocks
-        vb.begin(GL11.GL_QUADS, blockFormat);
-        for (Map.Entry<BlockPos, RenderData> entry : renderDataMap.entrySet()) {
-            BlockPos pos = entry.getKey();
-            if (slice.isPresent() && slice.get() != pos.getY()) continue;
+        // Render blocks per Forge layer so layer-sensitive baked models like AE2 cable buses
+        // can emit the correct quads in preview rendering.
+        for (BlockRenderLayer renderLayer : BlockRenderLayer.values()) {
+            vb.begin(GL11.GL_QUADS, blockFormat);
+            ForgeHooksClient.setRenderLayer(renderLayer);
 
-            RenderData data = entry.getValue();
-            IBlockState state = data.getSampleState(sampleSnap);
-            if (state == null || state.getBlock() == Blocks.AIR) continue;
+            for (Map.Entry<BlockPos, RenderData> entry : renderDataMap.entrySet()) {
+                BlockPos pos = entry.getKey();
+                if (slice.isPresent() && slice.get() != pos.getY()) continue;
 
-            // Skip states with missing models to avoid purple/black checkerboard textures
-            // But allow fluid blocks which render differently
-            EnumBlockRenderType renderType = state.getRenderType();
-            boolean isFluid = renderType == EnumBlockRenderType.LIQUID ||
-                state.getBlock() instanceof BlockLiquid || state.getBlock() instanceof IFluidBlock;
-            if (!isFluid && !BlockStateRenderValidator.canRender(state)) continue;
+                RenderData data = entry.getValue();
+                IBlockState state = data.getSampleState(sampleSnap);
+                if (state == null || state.getBlock() == Blocks.AIR) continue;
+                if (!state.getBlock().canRenderInLayer(state, renderLayer)) continue;
 
-            try {
-                IBlockState actualState = state.getBlock().getActualState(state, renderAccess, pos);
+                // Skip states with missing models to avoid purple/black checkerboard textures
+                // But allow fluid blocks which render differently.
+                EnumBlockRenderType renderType = state.getRenderType();
+                boolean isFluid = renderType == EnumBlockRenderType.LIQUID ||
+                    state.getBlock() instanceof BlockLiquid || state.getBlock() instanceof IFluidBlock;
+                if (!isFluid && !BlockStateRenderValidator.canRender(state)) continue;
 
-                if (isFluid) {
-                    // Fluids are rendered through the normal block renderer as well
-                    // The BlockRendererDispatcher handles BlockLiquid specially via BlockModelRenderer
-                    brd.renderBlock(actualState, pos, renderAccess, vb);
-                } else {
-                    brd.renderBlock(actualState, pos, renderAccess, vb);
+                try {
+                    IBlockState actualState = PreviewRenderStateResolver.resolveActual(state, previewWorld, pos);
+                    IBlockState renderState = PreviewRenderStateResolver.resolve(state, previewWorld, pos);
+
+                    if (renderType == EnumBlockRenderType.LIQUID) {
+                        brd.renderBlock(state, pos, previewWorld, vb);
+                        continue;
+                    }
+
+                    IBakedModel model = brd.getModelForState(actualState);
+
+                    brd.getBlockModelRenderer().renderModel(previewWorld, model, renderState, pos, vb, true);
+                } catch (Exception ignored) {
+                    // Some blocks fail to render in fake world context - silently skip.
                 }
-            } catch (Exception ignored) {
-                // Some blocks fail to render in fake world context - silently skip
             }
+
+            tes.draw();
         }
-        tes.draw();
+
+        ForgeHooksClient.setRenderLayer(null);
 
         // Render tile entities with proper lighting and render pass setup
         // Render both pass 0 (opaque) and pass 1 (translucent) for proper transparency support
@@ -299,7 +309,6 @@ public class StructureRenderHelper {
      * Update the render access with current sample states.
      */
     private void updateRenderAccess(@Nullable Integer slice) {
-        renderAccess.clear();
         previewWorld.clearPreview();
 
         for (Map.Entry<BlockPos, RenderData> entry : renderDataMap.entrySet()) {
@@ -308,13 +317,13 @@ public class StructureRenderHelper {
 
             RenderData data = entry.getValue();
             IBlockState state = data.getSampleState(sampleSnap);
-            renderAccess.setBlockState(pos, state);
 
             TileEntity te = data.getTileEntity(previewWorld, pos);
-            if (te != null) renderAccess.setTileEntity(pos, te);
-
             previewWorld.setPreviewState(pos, state, te);
         }
+
+        // FIXME: Fix AE2 tiles not connecting with each other in the preview
+        // previewWorld.finalizePreviewTileEntities();
     }
 
     /**
