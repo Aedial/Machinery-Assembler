@@ -306,6 +306,7 @@ public class Structure {
             throw new JsonParseException("Invalid input value type!");
         }
 
+        @SuppressWarnings("deprecation")
         private BlockStateMatcher parseBlockDescriptor(String str, @Nullable Integer metaOverride) throws JsonParseException {
             int meta = -1;
             int indexMeta = str.indexOf('@');

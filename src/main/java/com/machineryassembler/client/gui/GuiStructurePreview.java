@@ -10,7 +10,6 @@ import java.util.Optional;
 
 import org.lwjgl.input.Mouse;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
@@ -19,7 +18,6 @@ import net.minecraft.client.resources.I18n;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import com.machineryassembler.MachineryAssembler;
 import com.machineryassembler.client.ClientProxy;
 import com.machineryassembler.client.render.GuiTextureGenerator;
 import com.machineryassembler.client.render.StructureRenderContext;
