@@ -36,6 +36,7 @@ gui.machineryassembler.output=输出
 # Example Structure Messages (for demonstration)
 machineryassembler.message.example=这是一条示例信息。向结构扔出钻石以使其运作！
 machineryassembler.message.warning=这是一条警告信息！小心，该结构即将爆炸！3... 2... 1...
+machineryassembler.message.cm3_metaitem_attachment=此处展示的附加物品源自原始CM3结构，请替换为更贴切的说明。
 
 # Keybinds
 key.categories.machineryassembler=机械组装器（Machinery Assembler）
