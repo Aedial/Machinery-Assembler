@@ -85,6 +85,10 @@ if (propertyBool('publish_to_curseforge')) {
                 relations {
                     // Optional: JEI
                     optionalDependency 'jei'
+                    // Optional: ProjectE
+                    optionalDependency 'projecte'
+                    // Optional: AE2
+                    optionalDependency 'ae2-uel'
                 }
             }
             options {

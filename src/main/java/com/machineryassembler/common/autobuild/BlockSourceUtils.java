@@ -13,10 +13,12 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.JsonToNBT;
 import net.minecraft.nbt.NBTException;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fml.common.registry.ForgeRegistries;
 
 import com.machineryassembler.common.structure.BlockRequirement;
+import com.machineryassembler.common.util.nbt.NBTMatchingHelper;
 
 
 /**
@@ -43,6 +45,7 @@ public class BlockSourceUtils {
      * @return The block state, or null if parsing fails
      */
     @Nullable
+    @SuppressWarnings("deprecation")
     public static IBlockState keyToState(String key) {
         int atIndex = key.lastIndexOf('@');
 
@@ -70,7 +73,7 @@ public class BlockSourceUtils {
     }
 
     /**
-     * Creates a key string for an item stack (registry:meta format).
+     * Creates a key string for an item stack (registry:meta|nbt format).
      */
     public static String stackToKey(ItemStack stack) {
         if (stack.isEmpty() || stack.getItem() == Items.AIR) return "minecraft:air@0";
@@ -114,6 +117,44 @@ public class BlockSourceUtils {
         }
 
         return stack;
+    }
+
+    public static int getKeySpecificity(String key) {
+        ItemStack stack = keyToStack(key);
+        if (stack.isEmpty() || !stack.hasTagCompound()) return 0;
+
+        return stack.getTagCompound().toString().length();
+    }
+
+    /**
+     * Checks if the available stack matches the required stack inclusively
+     * (i.e. available stack can have extra NBT but must match all required NBT).
+     * @param availableStack The stack that is available.
+     * @param requiredStack The stack that is required.
+     * @return True if the available stack matches the required stack, false otherwise.
+     */
+    public static boolean matchesRequiredStack(ItemStack availableStack, ItemStack requiredStack) {
+        if (availableStack.isEmpty() || requiredStack.isEmpty()) return false;
+
+        return matchesRequiredComponents(
+            availableStack.getItem(),
+            availableStack.getMetadata(),
+            availableStack.getTagCompound(),
+            requiredStack.getItem(),
+            requiredStack.getMetadata(),
+            requiredStack.getTagCompound());
+    }
+
+    static boolean matchesRequiredComponents(@Nullable Item availableItem, int availableMetadata,
+                                             @Nullable NBTTagCompound availableTag, @Nullable Item requiredItem,
+                                             int requiredMetadata, @Nullable NBTTagCompound requiredTag) {
+        if (availableItem == null || requiredItem == null) return false;
+        if (availableItem != requiredItem) return false;
+        if (availableMetadata != requiredMetadata) return false;
+        if (requiredTag == null) return true;
+        if (availableTag == null) return false;
+
+        return NBTMatchingHelper.matchNBTCompound(requiredTag, availableTag);
     }
 
     /**

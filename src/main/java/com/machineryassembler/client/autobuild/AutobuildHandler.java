@@ -12,6 +12,7 @@ import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.EnumHand;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentTranslation;
@@ -31,6 +32,7 @@ import com.machineryassembler.common.network.PacketAutobuildPlacementIssue;
 import com.machineryassembler.common.network.PacketAutobuildPlacementIssue.PlacementIssue;
 import com.machineryassembler.common.network.PacketAutobuildRequest;
 import com.machineryassembler.common.network.PacketAutobuildResult;
+import com.machineryassembler.common.network.PacketWrenchSourceSettingsSync;
 import com.machineryassembler.common.structure.BlockRequirement;
 import com.machineryassembler.common.structure.Structure;
 import com.machineryassembler.common.structure.StructurePattern;
@@ -166,7 +168,8 @@ public class AutobuildHandler {
 
         // Send request to server
         player.sendMessage(new TextComponentTranslation("message.machineryassembler.wrench.building"));
-        NetworkHandler.INSTANCE.sendToServer(new PacketAutobuildRequest(structureId, origin));
+        NetworkHandler.INSTANCE.sendToServer(
+            new PacketAutobuildRequest(structureId, origin, ItemAssemblerWrench.getBlockSourceSettingsTag(wrenchStack)));
 
         // Fully tear down the autobuild state. The anchor position served its purpose
         // and must not linger, otherwise further right-clicks would re-trigger autobuild.
@@ -180,6 +183,11 @@ public class AutobuildHandler {
         ItemAssemblerWrench.clearLastAnchorPos(wrenchStack);
 
         return true;
+    }
+
+    public static void syncBlockSourceSettings(EnumHand hand, ItemStack wrenchStack) {
+        NetworkHandler.INSTANCE.sendToServer(
+            new PacketWrenchSourceSettingsSync(hand, ItemAssemblerWrench.getBlockSourceSettingsTag(wrenchStack)));
     }
 
     // ==================== Server Response Handlers ====================

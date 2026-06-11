@@ -8,6 +8,16 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.3.0] - 2026-06-15
+### Added
+- Add ProjectE and AE2 providers to the Wrench, for autobuilding.
+- Make autobuilding NBT-aware. Previously, it would simply ignore NBT data or match it strictly, leading to blocks not being matched because they didn't have the exact NBT data as the pattern. Now, it will attempt to match blocks with compatible NBT data, such as matching a chest with any inventory contents to a chest pattern, or matching a bed with any color to a bed pattern.
+- Make autobuilding trigger onPlayerPlaceBlock, to allow blocks with special placement logic (like ownership) to be placed correctly.
+
+### Fixed
+- Fix autobuild counting and placement for multi-block items by planning required materials around successful item placement actions instead of charging one item per occupied structure cell.
+
+
 ## [0.2.2] - 2026-06-10
 ### Fixed
 - Fix message item tooltip rendering behind JEI item slots.

@@ -54,6 +54,14 @@ item.machineryassembler.assembler_wrench.selected=Selected: %s
 item.machineryassembler.assembler_wrench.clear_hint=Press Escape to clear selection
 item.machineryassembler.assembler_wrench.no_selection=Right-click to select a structure
 item.machineryassembler.assembler_wrench.focus=Focus block: %s
+item.machineryassembler.assembler_wrench.provider.inventory=Inventory
+item.machineryassembler.assembler_wrench.provider.emc=EMC
+item.machineryassembler.assembler_wrench.provider.ae2=AE2
+item.machineryassembler.assembler_wrench.provider.enabled=§aenabled§7
+item.machineryassembler.assembler_wrench.provider.disabled=§cdisabled§7
+item.machineryassembler.assembler_wrench.provider.linked=(§alinked§7)
+item.machineryassembler.assembler_wrench.provider.unlinked=(§cunlinked§7)
+item.machineryassembler.assembler_wrench.provider_line=%s: %s
 
 # Wrench GUI
 gui.machineryassembler.wrench.no_selection=Select a structure from the list

@@ -28,6 +28,13 @@ public class NetworkHandler {
             Side.SERVER
         );
 
+        INSTANCE.registerMessage(
+            PacketWrenchSourceSettingsSync.Handler.class,
+            PacketWrenchSourceSettingsSync.class,
+            packetId++,
+            Side.SERVER
+        );
+
         // Server -> Client
         INSTANCE.registerMessage(
             PacketAutobuildObstruction.Handler.class,

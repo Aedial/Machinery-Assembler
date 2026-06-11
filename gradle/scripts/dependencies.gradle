@@ -44,4 +44,10 @@ dependencies {
 
     // ---- Optional: JEI ----
     devOnlyNonPublishable rfg.deobf("curse.maven:jei-238222:3043174")
+
+    // ---- Optional: AE2-UEL ----
+    devOnlyNonPublishable rfg.deobf("curse.maven:ae2-extended-life-570458:5378163")
+
+    // ---- Optional: ProjectE ----
+    devOnlyNonPublishable rfg.deobf("curse.maven:projecte-226410:2702991")
 }
