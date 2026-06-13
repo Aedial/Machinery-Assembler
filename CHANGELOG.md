@@ -8,6 +8,14 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.4.0] - 2026-09-01
+### Added
+- Add the Multiblock Recording Tool, including exclusion-aware preview, per-tile top-level tag toggles, and saving/reloading from the Minecraft-root `multiblocks/` folder.
+
+### Fixed
+- Fix crash in some in-world previews.
+
+
 ## [0.3.0] - 2026-06-15
 ### Added
 - Add ProjectE and AE2 providers to the Wrench, for autobuilding.

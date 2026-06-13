@@ -34,6 +34,12 @@ public final class PreviewRenderStateResolver {
         IBlockState actualState = resolveActual(state, access, pos);
         if (actualState == null || actualState.getBlock() == Blocks.AIR) return actualState;
 
-        return actualState.getBlock().getExtendedState(actualState, access, pos);
+        try {
+            return actualState.getBlock().getExtendedState(actualState, access, pos);
+        } catch (IllegalArgumentException ignored) {
+            // Some preview-only accesses produce invalid unlisted-property inputs.
+            // Fall back to the actual state so the preview can still render.
+            return actualState;
+        }
     }
 }
