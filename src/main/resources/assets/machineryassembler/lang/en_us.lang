@@ -63,11 +63,52 @@ item.machineryassembler.assembler_wrench.provider.linked=(§alinked§7)
 item.machineryassembler.assembler_wrench.provider.unlinked=(§cunlinked§7)
 item.machineryassembler.assembler_wrench.provider_line=%s: %s
 
+# Multiblock Recording Tool
+item.machineryassembler.multiblock_recording_tool.name=Multiblock Recording Tool
+item.machineryassembler.multiblock_recording_tool.tooltip.1=§bRight-click§r once to set the first corner at your feet.
+item.machineryassembler.multiblock_recording_tool.tooltip.2=§bRight-click again§r to set the second corner.
+item.machineryassembler.multiblock_recording_tool.tooltip.3=§bRight-click a third time§r to scan the area and open the recorder.
+item.machineryassembler.multiblock_recording_tool.tooltip.4=Preview and saved output both use the same filtered tile tags.
+item.machineryassembler.multiblock_recording_tool.tooltip.5=§bShift + right-click§r clears the corners, exclusions, and cached snapshot.
+
 # Wrench GUI
 gui.machineryassembler.wrench.no_selection=Select a structure from the list
 gui.machineryassembler.wrench.double_click_hint=Double-click to select for autobuild
 gui.machineryassembler.wrench.i18n.on=Show: Localized Names
 gui.machineryassembler.wrench.i18n.off=Show: Registry IDs
+
+# Recorder GUI
+gui.machineryassembler.recorder.title=Multiblock Recorder
+gui.machineryassembler.recorder.size=Final Size: %s x %s x %s
+gui.machineryassembler.recorder.empty_after_exclusions_label=Nothing would remain after the current exclusions.
+gui.machineryassembler.recorder.corner_a.short=Corner A
+gui.machineryassembler.recorder.corner_b.short=Corner B
+gui.machineryassembler.recorder.preview=Preview
+gui.machineryassembler.recorder.preview.title=Recorder Preview
+gui.machineryassembler.recorder.preview.unavailable=Preview unavailable
+gui.machineryassembler.recorder.save=Save JSON
+gui.machineryassembler.recorder.cancel=Cancel
+gui.machineryassembler.recorder.output_folder=Will save to minecraft/multiblocks/ and reload it for the wrench.
+gui.machineryassembler.recorder.hint=Esc closes the screen. Reopen it to rescan while keeping the current exclusions.
+gui.machineryassembler.recorder.blocks_button=Blocks (%d)
+gui.machineryassembler.recorder.tiles_button=Tile Tags (%d)
+gui.machineryassembler.recorder.blocks.short=Blocks
+gui.machineryassembler.recorder.tiles.short=Tile Tags
+gui.machineryassembler.recorder.block_types=%d block types
+gui.machineryassembler.recorder.total_blocks=%d blocks
+gui.machineryassembler.recorder.tile_groups=%d tiles
+gui.machineryassembler.recorder.tile_tags=%d optional tags
+gui.machineryassembler.recorder.excluded_tooltip=Excluded from the saved structure
+gui.machineryassembler.recorder.blocks.title=Captured Blocks
+gui.machineryassembler.recorder.blocks.footer=%d block types, %d excluded
+gui.machineryassembler.recorder.blocks.empty=No blocks found in the capture.
+gui.machineryassembler.recorder.blocks.count=Count: %d
+gui.machineryassembler.recorder.blocks.count_tooltip=Total blocks in selection: %d
+gui.machineryassembler.recorder.tiles.title=Captured Tile Tags
+gui.machineryassembler.recorder.tiles.footer=%d tiles, %d visible tags, %d excluded
+gui.machineryassembler.recorder.tiles.empty=No optional tile tags remain after the current block exclusions.
+gui.machineryassembler.recorder.tiles.tag_tooltip.included=Click to exclude this tag from preview and matching.
+gui.machineryassembler.recorder.tiles.tag_tooltip.excluded=Click to include this tag in preview and matching again.
 
 # Wrench Messages
 message.machineryassembler.wrench.selected=Structure selected. Right-click to build.
@@ -82,6 +123,17 @@ message.machineryassembler.wrench.missing_aborted=Build aborted: insufficient bl
 message.machineryassembler.wrench.build_complete=Autobuild complete! Placed %d blocks.
 message.machineryassembler.wrench.partial_build=Partial build: %d placed, %d failed.
 message.machineryassembler.wrench.build_failed=Autobuild failed.
+
+# Recorder Messages
+message.machineryassembler.recorder.first_corner=First recorder corner set at %s, %s, %s.
+message.machineryassembler.recorder.second_corner=Second recorder corner set at %s, %s, %s.
+message.machineryassembler.recorder.reset=Recorder corners, exclusions, and cached snapshot cleared.
+message.machineryassembler.recorder.loading=Building recorder snapshot...
+message.machineryassembler.recorder.empty=No blocks were found inside that selection.
+message.machineryassembler.recorder.empty_after_exclusions=Nothing would remain after the current exclusions.
+message.machineryassembler.recorder.preview_failed=Could not build the recorder preview.
+message.machineryassembler.recorder.saved=Saved multiblock to %s
+message.machineryassembler.recorder.save_failed=Failed to save the multiblock recording.
 
 # Config
 config.machineryassembler.consumeBlocksInCreative=Consume Blocks in Creative
