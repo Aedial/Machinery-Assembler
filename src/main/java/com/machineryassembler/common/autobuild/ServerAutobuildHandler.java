@@ -295,14 +295,15 @@ public class ServerAutobuildHandler {
         if (requiredStack.isEmpty()) return null;
 
         PlacementAction bestAction = null;
+        String extractedKey = BlockSourceUtils.stackToKey(requiredStack);
+        SimulationPlayer simulationPlayer = new SimulationPlayer(world, player);
 
         for (PlacementAttempt attempt : createPlacementAttempts(anchorRelPos, requiredStack, player)) {
-            PlacementProbeResult probe = probePlacement(world, origin, sortedBlocks, attempt, player);
+            PlacementProbeResult probe = probePlacement(world, origin, sortedBlocks, attempt, player, simulationPlayer);
             if (probe == null) continue;
             if (!probe.coveredPositions.contains(anchorRelPos)) continue;
 
-            PlacementAction candidate = new PlacementAction(
-                BlockSourceUtils.stackToKey(attempt.stack), attempt, probe.coveredPositions);
+            PlacementAction candidate = new PlacementAction(extractedKey, attempt, probe.coveredPositions);
 
             if (isBetterPlacementAction(candidate, bestAction, anchorRelPos)) {
                 bestAction = candidate;
@@ -414,7 +415,7 @@ public class ServerAutobuildHandler {
             : 0.5F;
 
         for (EnumFacing horizontal : horizontalOrder) {
-            attempts.add(new PlacementAttempt(requiredStack.copy(), targetRelPos, clickedRelPos,
+            attempts.add(new PlacementAttempt(requiredStack, targetRelPos, clickedRelPos,
                 facing, hitX, hitY, hitZ, horizontal));
         }
     }
@@ -423,8 +424,28 @@ public class ServerAutobuildHandler {
                                                        BlockPos origin,
                                                        List<Map.Entry<BlockPos, BlockRequirement>> sortedBlocks,
                                                        PlacementAttempt attempt,
-                                                       EntityPlayerMP player) {
-        SimulationPlayer simulationPlayer = new SimulationPlayer(world, player);
+                                                       EntityPlayerMP player,
+                                                       SimulationPlayer simulationPlayer) {
+        PlacementProbeResult probeResult = probePlacementWithPlayer(
+            world,
+            origin,
+            sortedBlocks,
+            attempt,
+            simulationPlayer,
+            player
+        );
+
+        if (probeResult != null) return probeResult;
+
+        return probePlacementWithPlayer(world, origin, sortedBlocks, attempt, player, player);
+    }
+
+    private static PlacementProbeResult probePlacementWithPlayer(WorldServer world,
+                                                                 BlockPos origin,
+                                                                 List<Map.Entry<BlockPos, BlockRequirement>> sortedBlocks,
+                                                                 PlacementAttempt attempt,
+                                                                 EntityPlayerMP placementPlayer,
+                                                                 EntityPlayerMP sourcePlayer) {
         BlockPos clickedPos = origin.add(attempt.clickedRelPos);
         BlockPos targetPos = origin.add(attempt.targetRelPos);
 
@@ -435,23 +456,26 @@ public class ServerAutobuildHandler {
         world.capturedBlockSnapshots.clear();
         List<BlockSnapshot> probeSnapshots = new ArrayList<>();
         Set<BlockPos> covered = new HashSet<>();
+        ItemStack originalMainHand = placementPlayer.getHeldItem(EnumHand.MAIN_HAND);
+        float originalYaw = placementPlayer.rotationYaw;
+        float originalPrevYaw = placementPlayer.prevRotationYaw;
 
         if (attempt.horizontalFacing != null) {
-            simulationPlayer.rotationYaw = attempt.horizontalFacing.getHorizontalAngle();
-            simulationPlayer.prevRotationYaw = simulationPlayer.rotationYaw;
+            placementPlayer.rotationYaw = attempt.horizontalFacing.getHorizontalAngle();
+            placementPlayer.prevRotationYaw = placementPlayer.rotationYaw;
         } else {
-            simulationPlayer.rotationYaw = player.rotationYaw;
-            simulationPlayer.prevRotationYaw = player.rotationYaw;
+            placementPlayer.rotationYaw = sourcePlayer.rotationYaw;
+            placementPlayer.prevRotationYaw = sourcePlayer.rotationYaw;
         }
 
-        simulationPlayer.setHeldItem(EnumHand.MAIN_HAND, attempt.stack.copy());
+        placementPlayer.setHeldItem(EnumHand.MAIN_HAND, attempt.stack.copy());
 
         EnumActionResult result;
 
         try {
             world.captureBlockSnapshots = true;
-            result = simulationPlayer.getHeldItem(EnumHand.MAIN_HAND).getItem().onItemUse(
-                simulationPlayer,
+            result = placementPlayer.getHeldItem(EnumHand.MAIN_HAND).getItem().onItemUse(
+                placementPlayer,
                 world,
                 clickedPos,
                 EnumHand.MAIN_HAND,
@@ -474,6 +498,9 @@ public class ServerAutobuildHandler {
             restoreSnapshots(world, probeSnapshots);
             world.capturedBlockSnapshots.clear();
             world.capturedBlockSnapshots.addAll(previousSnapshots);
+            placementPlayer.setHeldItem(EnumHand.MAIN_HAND, originalMainHand);
+            placementPlayer.rotationYaw = originalYaw;
+            placementPlayer.prevRotationYaw = originalPrevYaw;
         }
 
         if (result != EnumActionResult.SUCCESS) return null;

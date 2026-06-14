@@ -14,6 +14,9 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 
 ### Fixed
 - Fix crash in some in-world previews.
+- Fix autobuild planning for blocks that reject FakePlayer probes by retrying placement simulation with the real player state before reporting a failed build.
+- Fix creative autobuilds with block consumption disabled. Placement inventory is now synthesized correctly instead of returning empty (which would fail during placement).
+- Reduce autobuild probe overhead by reusing the fake-player probe state and the per-block item template instead of rebuilding both for every candidate attempt.
 
 
 ## [0.3.0] - 2026-06-15
@@ -33,7 +36,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Fix output slot not rendering correctly in the JEI preview.
 - Fix structure previews rendering animated block entities like Botania pylons, Thaumcraft runic matrices, beds, and skulls incorrectly.
 - Fix TESR preview persistence in JEI and make autobuild count special block items like beds and skulls correctly instead of reporting them as Air.
-- Fix some conversion issues in the CM3 to MA script. AE2 cables and some rare cases of block variants are still not handled correctly, but the script should work for the majority of structutres now.
+- Fix some conversion issues in the CM3 to MA script. AE2 cables and some rare cases of block variants are still not handled correctly, but the script should work for the majority of structures now.
 
 
 ## [0.2.1] - 2026-02-10

@@ -88,8 +88,13 @@ public class InventoryBlockSource implements BlockSource {
         EntityPlayer player = context.getPlayer();
         BlockExtractionResult result = new BlockExtractionResult();
 
-        // Creative mode with no consumption - everything succeeds
+        // Creative mode with no consumption still needs extracted keys so the placement task
+        // has something to consume while it drives item-use placement.
         if (player.isCreative() && !AutobuildConfig.consumeBlocksInCreative) {
+            for (Map.Entry<String, Integer> entry : requirements.entrySet()) {
+                result.addExtractedKey(entry.getKey(), entry.getValue());
+            }
+
             return result;
         }
 
