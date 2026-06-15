@@ -54,12 +54,61 @@ item.machineryassembler.assembler_wrench.selected=已选择：%s
 item.machineryassembler.assembler_wrench.clear_hint=按Escape以清除选择
 item.machineryassembler.assembler_wrench.no_selection=右击选择一个结构
 item.machineryassembler.assembler_wrench.focus=焦点方块：%s
+item.machineryassembler.assembler_wrench.provider.inventory=物品栏
+item.machineryassembler.assembler_wrench.provider.emc=EMC
+item.machineryassembler.assembler_wrench.provider.ae2=AE2
+item.machineryassembler.assembler_wrench.provider.enabled=§a已启用§7
+item.machineryassembler.assembler_wrench.provider.disabled=§c已禁用§7
+item.machineryassembler.assembler_wrench.provider.linked=（§a已链接§7）
+item.machineryassembler.assembler_wrench.provider.unlinked=（§c未链接§7）
+item.machineryassembler.assembler_wrench.provider_line=%s：%s
+
+# Multiblock Recording Tool
+item.machineryassembler.multiblock_recording_tool.name=多方块记录工具
+item.machineryassembler.multiblock_recording_tool.tooltip.1=§b首次右键点击§r以将第一个顶点设置在玩家脚下。
+item.machineryassembler.multiblock_recording_tool.tooltip.2=§b再次右键点击§r以设置第二个顶点。
+item.machineryassembler.multiblock_recording_tool.tooltip.3=§b第三次右键点击§r以扫描选区并打开录制器。
+item.machineryassembler.multiblock_recording_tool.tooltip.4=预览和保存的输出都使用相同的过滤方块标签。
+item.machineryassembler.multiblock_recording_tool.tooltip.5=§bShift+右键点击§r以清除顶点、排除项和缓存的快照。
 
 # Wrench GUI
 gui.machineryassembler.wrench.no_selection=从列表中选择一个结构
 gui.machineryassembler.wrench.double_click_hint=双击选择以用于自动建造
 gui.machineryassembler.wrench.i18n.on=显示：本地化名称
 gui.machineryassembler.wrench.i18n.off=显示：注册ID
+
+# Recorder GUI
+gui.machineryassembler.recorder.title=多方块记录器
+gui.machineryassembler.recorder.size=最终尺寸：%s x %s x %s
+gui.machineryassembler.recorder.empty_after_exclusions_label=在当前排除项下，不会保留任何方块。
+gui.machineryassembler.recorder.corner_a.short=顶点A
+gui.machineryassembler.recorder.corner_b.short=顶点B
+gui.machineryassembler.recorder.preview=预览
+gui.machineryassembler.recorder.preview.title=记录器预览
+gui.machineryassembler.recorder.preview.unavailable=无可用预览
+gui.machineryassembler.recorder.save=保存JSON
+gui.machineryassembler.recorder.cancel=取消
+gui.machineryassembler.recorder.output_folder=将保存至目录minecraft/multiblocks/，并重新加载以供扳手使用。
+gui.machineryassembler.recorder.hint=按Esc可关闭界面。再次打开时会重新扫描，同时保留相同的排除项。
+gui.machineryassembler.recorder.blocks_button=方块（%d）
+gui.machineryassembler.recorder.tiles_button=方块实体标签（%d）
+gui.machineryassembler.recorder.blocks.short=方块
+gui.machineryassembler.recorder.tiles.short=方块实体标签
+gui.machineryassembler.recorder.block_types=%d方块类型
+gui.machineryassembler.recorder.total_blocks=%d方块
+gui.machineryassembler.recorder.tile_groups=%d方块实体
+gui.machineryassembler.recorder.tile_tags=%d可选标签
+gui.machineryassembler.recorder.excluded_tooltip=从已保存的结构中排除
+gui.machineryassembler.recorder.blocks.title=已捕获的方块
+gui.machineryassembler.recorder.blocks.footer=%d种方块类型，已排除%d
+gui.machineryassembler.recorder.blocks.empty=捕获中未找到方块。
+gui.machineryassembler.recorder.blocks.count=数量：%d
+gui.machineryassembler.recorder.blocks.count_tooltip=选区中方块总数：%d
+gui.machineryassembler.recorder.tiles.title=已捕获的方块实体标签
+gui.machineryassembler.recorder.tiles.footer=%d组方块实体，%d个可见标签，已排除%d
+gui.machineryassembler.recorder.tiles.empty=在当前方块排除项下，不会保留任何可选的方块实体标签。
+gui.machineryassembler.recorder.tiles.tag_tooltip.included=点击以从预览和匹配中排除此标签。
+gui.machineryassembler.recorder.tiles.tag_tooltip.excluded=点击以在预览和匹配中重新包含此标签。
 
 # Wrench Messages
 message.machineryassembler.wrench.selected=结构已选择。右击进行建造。
@@ -74,6 +123,17 @@ message.machineryassembler.wrench.missing_aborted=建造已中止：方块不足
 message.machineryassembler.wrench.build_complete=自动建造完成！已放置%d个方块。
 message.machineryassembler.wrench.partial_build=部分建造完成：已放置%d个方块，失败了%d个。
 message.machineryassembler.wrench.build_failed=自动建造失败。
+
+# Recorder Messages
+message.machineryassembler.recorder.first_corner=第一个记录器顶点已设置在%s, %s, %s.
+message.machineryassembler.recorder.second_corner=第二个记录器顶点已设置在%s, %s, %s.
+message.machineryassembler.recorder.reset=记录器顶点、排除项和缓存的快照已清除。
+message.machineryassembler.recorder.loading=正在构建记录器快照……
+message.machineryassembler.recorder.empty=该选区内未发现任何方块。
+message.machineryassembler.recorder.empty_after_exclusions=在当前排除项下，将不存在剩余内容。
+message.machineryassembler.recorder.preview_failed=无法构建记录器预览。
+message.machineryassembler.recorder.saved=多方块已保存至%s
+message.machineryassembler.recorder.save_failed=保存多方块记录失败。
 
 # Config
 config.machineryassembler.consumeBlocksInCreative=创造模式下消耗方块
