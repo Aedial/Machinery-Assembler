@@ -28,6 +28,34 @@ public class NetworkHandler {
             Side.SERVER
         );
 
+        INSTANCE.registerMessage(
+            PacketWrenchSourceSettingsSync.Handler.class,
+            PacketWrenchSourceSettingsSync.class,
+            packetId++,
+            Side.SERVER
+        );
+
+        INSTANCE.registerMessage(
+            PacketRequestMultiblockRecordingCapture.Handler.class,
+            PacketRequestMultiblockRecordingCapture.class,
+            packetId++,
+            Side.SERVER
+        );
+
+        INSTANCE.registerMessage(
+            PacketRequestMultiblockRecordingSave.Handler.class,
+            PacketRequestMultiblockRecordingSave.class,
+            packetId++,
+            Side.SERVER
+        );
+
+        INSTANCE.registerMessage(
+            PacketClearMultiblockRecordingSession.Handler.class,
+            PacketClearMultiblockRecordingSession.class,
+            packetId++,
+            Side.SERVER
+        );
+
         // Server -> Client
         INSTANCE.registerMessage(
             PacketAutobuildObstruction.Handler.class,
@@ -53,6 +81,13 @@ public class NetworkHandler {
         INSTANCE.registerMessage(
             PacketAutobuildPlacementIssue.Handler.class,
             PacketAutobuildPlacementIssue.class,
+            packetId++,
+            Side.CLIENT
+        );
+
+        INSTANCE.registerMessage(
+            PacketMultiblockRecordingCapture.Handler.class,
+            PacketMultiblockRecordingCapture.class,
             packetId++,
             Side.CLIENT
         );

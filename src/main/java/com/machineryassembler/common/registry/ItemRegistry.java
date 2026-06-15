@@ -15,6 +15,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 import com.machineryassembler.MachineryAssembler;
 import com.machineryassembler.common.item.ItemAssemblerWrench;
+import com.machineryassembler.common.item.ItemMultiblockRecordingTool;
 
 
 /**
@@ -24,16 +25,19 @@ import com.machineryassembler.common.item.ItemAssemblerWrench;
 public class ItemRegistry {
 
     public static final ItemAssemblerWrench ASSEMBLER_BATON = new ItemAssemblerWrench();
+    public static final ItemMultiblockRecordingTool MULTIBLOCK_RECORDING_TOOL = new ItemMultiblockRecordingTool();
 
     @SubscribeEvent
     public static void onItemRegister(RegistryEvent.Register<Item> event) {
         event.getRegistry().register(ASSEMBLER_BATON);
+        event.getRegistry().register(MULTIBLOCK_RECORDING_TOOL);
     }
 
     @SubscribeEvent
     @SideOnly(Side.CLIENT)
     public static void onModelRegister(ModelRegistryEvent event) {
         registerItemModel(ASSEMBLER_BATON);
+        registerItemModel(MULTIBLOCK_RECORDING_TOOL);
     }
 
     @SideOnly(Side.CLIENT)

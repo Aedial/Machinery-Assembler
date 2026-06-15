@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -41,8 +42,7 @@ public class StructureRegistry implements Iterable<Structure> {
      * Preloads structures from files (first pass, registers names).
      */
     public static void preloadStructures() {
-        File structuresDir = CommonProxy.dataHolder.getStructuresDirectory();
-        List<File> candidates = StructureLoader.discoverDirectory(structuresDir);
+        List<File> candidates = discoverStructureCandidates();
 
         List<Tuple<Structure, String>> found = StructureLoader.registerStructures(candidates);
 
@@ -98,8 +98,7 @@ public class StructureRegistry implements Iterable<Structure> {
      * Reloads structures from files, merging with existing ones or adding new ones.
      */
     public static void reloadStructures(@Nullable ICommandSender sender) {
-        File structuresDir = CommonProxy.dataHolder.getStructuresDirectory();
-        List<File> candidates = StructureLoader.discoverDirectory(structuresDir);
+        List<File> candidates = discoverStructureCandidates();
 
         List<Tuple<Structure, String>> found = StructureLoader.registerStructures(candidates);
 
@@ -159,6 +158,18 @@ public class StructureRegistry implements Iterable<Structure> {
         // Use the proxy to handle client-side notification
         // The proxy knows how to schedule on the correct thread
         MachineryAssembler.proxy.scheduleClientStructureReload();
+    }
+
+    private static List<File> discoverStructureCandidates() {
+        Map<String, File> candidatesByPath = new LinkedHashMap<>();
+
+        for (File directory : CommonProxy.dataHolder.getStructuresDirectories()) {
+            for (File candidate : StructureLoader.discoverDirectory(directory)) {
+                candidatesByPath.putIfAbsent(candidate.getAbsolutePath(), candidate);
+            }
+        }
+
+        return new ArrayList<>(candidatesByPath.values());
     }
 
     public static List<Structure> getLoadedStructures() {

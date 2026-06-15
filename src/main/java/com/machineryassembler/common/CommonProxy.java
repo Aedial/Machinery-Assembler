@@ -5,12 +5,14 @@ import java.io.File;
 import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
 
 import net.minecraftforge.common.ForgeChunkManager;
+import net.minecraftforge.common.MinecraftForge;
 
 import com.machineryassembler.MachineryAssembler;
 import com.machineryassembler.common.command.CommandReloadStructures;
 import com.machineryassembler.common.config.AutobuildConfig;
 import com.machineryassembler.common.data.DataHolder;
 import com.machineryassembler.common.network.NetworkHandler;
+import com.machineryassembler.common.recording.MultiblockRecordingSessionEvents;
 import com.machineryassembler.common.structure.StructureRegistry;
 
 
@@ -28,6 +30,7 @@ public class CommonProxy {
 
     public void preInit() {
         NetworkHandler.init();
+        MinecraftForge.EVENT_BUS.register(new MultiblockRecordingSessionEvents());
         StructureRegistry.preloadStructures();
 
         // Register chunk loading callback for autobuild

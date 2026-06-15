@@ -9,6 +9,7 @@ import com.machineryassembler.client.integration.jei.JEIScrollHandler;
 import com.machineryassembler.client.integration.jei.MAJEIPlugin;
 import com.machineryassembler.client.render.WrenchHighlightRenderer;
 import com.machineryassembler.client.render.InWorldPreviewRenderer;
+import com.machineryassembler.client.render.MultiblockRecordingSelectionRenderer;
 import com.machineryassembler.common.CommonProxy;
 
 
@@ -17,6 +18,7 @@ public class ClientProxy extends CommonProxy {
 
     public static final InWorldPreviewRenderer previewRenderer = new InWorldPreviewRenderer();
     public static final WrenchHighlightRenderer highlightRenderer = new WrenchHighlightRenderer();
+    public static final MultiblockRecordingSelectionRenderer recordingSelectionRenderer = new MultiblockRecordingSelectionRenderer();
 
     private final PreviewKeybindHandler keybindHandler = new PreviewKeybindHandler();
     private final PreviewInteractionHandler interactionHandler = new PreviewInteractionHandler();
@@ -30,6 +32,7 @@ public class ClientProxy extends CommonProxy {
         MinecraftForge.EVENT_BUS.register(interactionHandler);
         MinecraftForge.EVENT_BUS.register(new PreviewRenderHandler());
         MinecraftForge.EVENT_BUS.register(highlightRenderer);
+        MinecraftForge.EVENT_BUS.register(recordingSelectionRenderer);
     }
 
     @Override

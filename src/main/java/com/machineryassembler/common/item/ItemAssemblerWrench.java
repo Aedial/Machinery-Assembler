@@ -23,10 +23,16 @@ import net.minecraft.util.EnumHand;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import net.minecraftforge.fml.common.Optional;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
+import appeng.api.features.INetworkEncodable;
+
 import com.machineryassembler.MachineryAssembler;
+import com.machineryassembler.client.gui.GuiWrenchSelector;
+import com.machineryassembler.common.autobuild.BlockSourceProviderId;
+import com.machineryassembler.common.autobuild.BlockSourceSettings;
 
 
 /**
@@ -37,7 +43,8 @@ import com.machineryassembler.MachineryAssembler;
  * Right-click on block: Opens GUI with that block as anchor filter.
  * Right-click after selection: Autobuilds structure at position.
  */
-public class ItemAssemblerWrench extends Item {
+@Optional.Interface(iface = "appeng.api.features.INetworkEncodable", modid = "appliedenergistics2")
+public class ItemAssemblerWrench extends Item implements INetworkEncodable {
 
     private static final String NBT_SELECTED_STRUCTURE = "SelectedStructure";
     private static final String NBT_FOCUS_BLOCK = "FocusBlock";
@@ -45,6 +52,9 @@ public class ItemAssemblerWrench extends Item {
     private static final String NBT_LAST_ANCHOR_BLOCK = "LastAnchorBlock";
     private static final String NBT_LAST_ANCHOR_META = "LastAnchorMeta";
     private static final String NBT_LAST_ANCHOR_POS = "LastAnchorPos";
+    private static final String NBT_BLOCK_SOURCE_SETTINGS = "BlockSourceSettings";
+
+   // TODO: Add a keybind for the providers menu. It should allow enabling/disabling and reordering.
 
     public ItemAssemblerWrench() {
         setRegistryName(MachineryAssembler.MODID, "assembler_wrench");
@@ -65,7 +75,7 @@ public class ItemAssemblerWrench extends Item {
             if (player.isSneaking()) {
                 // Shift+right-click: Cancel preview and open GUI
                 cancelPreviewClient(stack);
-                openGui(stack, null, player);
+                openGui(stack, null);
 
                 return new ActionResult<>(EnumActionResult.SUCCESS, stack);
             }
@@ -88,11 +98,11 @@ public class ItemAssemblerWrench extends Item {
             // Shift+right-click: Clear any stored anchor/selection and open fresh GUI
             clearLastAnchorBlock(stack);
             clearSelectedStructure(stack);
-            openGui(stack, null, player);
+            openGui(stack, null);
         } else {
             // Right-click in air: Open GUI with previous anchor (if any)
             IBlockState lastAnchor = getLastAnchorBlock(stack);
-            openGui(stack, lastAnchor, player);
+            openGui(stack, lastAnchor);
         }
 
         return new ActionResult<>(EnumActionResult.SUCCESS, stack);
@@ -113,7 +123,7 @@ public class ItemAssemblerWrench extends Item {
         if (player.isSneaking()) {
             IBlockState state = world.getBlockState(pos);
             setLastAnchorBlock(stack, state, pos);
-            openGui(stack, state, player);
+            openGui(stack, state);
 
             return EnumActionResult.SUCCESS;
         }
@@ -181,10 +191,10 @@ public class ItemAssemblerWrench extends Item {
      * Called on client side only.
      */
     @SideOnly(Side.CLIENT)
-    private void openGui(ItemStack stack, @Nullable IBlockState anchorState, EntityPlayer player) {
+    private void openGui(ItemStack stack, @Nullable IBlockState anchorState) {
         // Defer import to avoid class loading issues on server
         net.minecraft.client.Minecraft.getMinecraft().displayGuiScreen(
-            new com.machineryassembler.client.gui.GuiWrenchSelector(stack, anchorState));
+            new GuiWrenchSelector(stack, anchorState));
     }
 
     // ----- NBT Accessors -----
@@ -312,10 +322,67 @@ public class ItemAssemblerWrench extends Item {
         return BlockPos.fromLong(tag.getLong(NBT_LAST_ANCHOR_POS));
     }
 
+    public static BlockSourceSettings getBlockSourceSettings(ItemStack stack) {
+        NBTTagCompound tag = stack.getTagCompound();
+        if (tag == null || !tag.hasKey(NBT_BLOCK_SOURCE_SETTINGS)) return BlockSourceSettings.defaults();
+
+        return BlockSourceSettings.fromTag(tag.getCompoundTag(NBT_BLOCK_SOURCE_SETTINGS));
+    }
+
+    public static NBTTagCompound getBlockSourceSettingsTag(ItemStack stack) {
+        return getBlockSourceSettings(stack).toTag();
+    }
+
+    public static void setBlockSourceSettings(ItemStack stack, BlockSourceSettings settings) {
+        setBlockSourceSettingsTag(stack, settings.toTag());
+    }
+
+    public static void setBlockSourceSettingsTag(ItemStack stack, @Nullable NBTTagCompound settingsTag) {
+        NBTTagCompound tag = stack.getTagCompound();
+
+        if (tag == null) {
+            tag = new NBTTagCompound();
+            stack.setTagCompound(tag);
+        }
+
+        if (settingsTag == null || settingsTag.isEmpty()) {
+            tag.removeTag(NBT_BLOCK_SOURCE_SETTINGS);
+        } else {
+            tag.setTag(NBT_BLOCK_SOURCE_SETTINGS, settingsTag.copy());
+        }
+    }
+
+    @Override
+    @Optional.Method(modid = "appliedenergistics2")
+    public String getEncryptionKey(ItemStack item) {
+        long encryptionKey = getBlockSourceSettings(item).getEncryptionKey();
+
+        return encryptionKey == 0L ? "" : Long.toString(encryptionKey);
+    }
+
+    @Override
+    @Optional.Method(modid = "appliedenergistics2")
+    public void setEncryptionKey(ItemStack item, String encKey, String name) {
+        long encryptionKey = 0L;
+
+        if (encKey != null && !encKey.isEmpty()) {
+            try {
+                encryptionKey = Long.parseLong(encKey);
+            } catch (NumberFormatException ignored) {
+                encryptionKey = 0L;
+            }
+        }
+
+        BlockSourceSettings sourceSettings = getBlockSourceSettings(item);
+        sourceSettings.setEncryptionKey(encryptionKey);
+        setBlockSourceSettings(item, sourceSettings);
+    }
+
     @Override
     @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack stack, @Nullable World world, List<String> tooltip, ITooltipFlag flag) {
         ResourceLocation selectedStructure = getSelectedStructure(stack);
+        BlockSourceSettings sourceSettings = getBlockSourceSettings(stack);
 
         if (selectedStructure != null) {
             tooltip.add(I18n.format("item.machineryassembler.assembler_wrench.selected", selectedStructure.toString()));
@@ -328,6 +395,24 @@ public class ItemAssemblerWrench extends Item {
         if (focusBlock != null) {
             String blockName = focusBlock.getBlock().getLocalizedName();
             tooltip.add(I18n.format("item.machineryassembler.assembler_wrench.focus", blockName));
+        }
+
+        tooltip.add("");
+
+        for (BlockSourceProviderId providerId : sourceSettings.getAvailableProviderOrder()) {
+            String providerName = I18n.format(providerId.getTranslationKey());
+            String providerState = I18n.format(sourceSettings.isEnabled(providerId)
+                ? "item.machineryassembler.assembler_wrench.provider.enabled"
+                : "item.machineryassembler.assembler_wrench.provider.disabled");
+
+            String line = I18n.format("item.machineryassembler.assembler_wrench.provider_line", providerName, providerState);
+
+            if (providerId == BlockSourceProviderId.AE2) {
+                String linked = sourceSettings.getEncryptionKey() != 0L ? "linked" : "unlinked";
+                line += " " + I18n.format("item.machineryassembler.assembler_wrench.provider." + linked);
+            }
+
+            tooltip.add(line);
         }
     }
 

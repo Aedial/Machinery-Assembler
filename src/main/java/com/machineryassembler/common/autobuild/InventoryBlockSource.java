@@ -15,7 +15,6 @@ import net.minecraft.item.ItemStack;
 
 import com.machineryassembler.common.config.AutobuildConfig;
 import com.machineryassembler.common.util.BlockStackUtils;
-import com.machineryassembler.common.util.nbt.NBTMatchingHelper;
 
 
 /**
@@ -29,7 +28,9 @@ public class InventoryBlockSource implements BlockSource {
     }
 
     @Override
-    public boolean canProvide(IBlockState state, EntityPlayer player) {
+    public boolean canProvide(IBlockState state, BlockSourceContext context) {
+        EntityPlayer player = context.getPlayer();
+
         // Creative mode with no consumption always can provide
         if (player.isCreative() && !AutobuildConfig.consumeBlocksInCreative) return true;
 
@@ -40,7 +41,9 @@ public class InventoryBlockSource implements BlockSource {
     }
 
     @Override
-    public int countAvailable(IBlockState state, EntityPlayer player) {
+    public int countAvailable(IBlockState state, BlockSourceContext context) {
+        EntityPlayer player = context.getPlayer();
+
         // Creative mode with no consumption has infinite blocks
         if (player.isCreative() && !AutobuildConfig.consumeBlocksInCreative) return Integer.MAX_VALUE;
 
@@ -52,7 +55,8 @@ public class InventoryBlockSource implements BlockSource {
 
     @Override
     @Nullable
-    public ItemStack extract(IBlockState state, EntityPlayer player, boolean simulate) {
+    public ItemStack extract(IBlockState state, BlockSourceContext context, boolean simulate) {
+        EntityPlayer player = context.getPlayer();
         ItemStack requiredStack = BlockStackUtils.getStackFromBlockState(state);
         if (requiredStack.isEmpty()) return null;
 
@@ -79,7 +83,75 @@ public class InventoryBlockSource implements BlockSource {
     }
 
     @Override
-    public Map<String, Integer> checkAvailability(Map<String, Integer> requirements, EntityPlayer player) {
+    public BlockExtractionResult batchExtractDetailed(Map<String, Integer> requirements, BlockSourceContext context,
+                                                      boolean simulate) {
+        EntityPlayer player = context.getPlayer();
+        BlockExtractionResult result = new BlockExtractionResult();
+
+        // Creative mode with no consumption still needs extracted keys so the placement task
+        // has something to consume while it drives item-use placement.
+        if (player.isCreative() && !AutobuildConfig.consumeBlocksInCreative) {
+            for (Map.Entry<String, Integer> entry : requirements.entrySet()) {
+                result.addExtractedKey(entry.getKey(), entry.getValue());
+            }
+
+            return result;
+        }
+
+        ItemStack[] workingInventory = null;
+        if (simulate) {
+            workingInventory = new ItemStack[player.inventory.getSizeInventory()];
+
+            for (int i = 0; i < workingInventory.length; i++) {
+                ItemStack stack = player.inventory.getStackInSlot(i);
+                workingInventory[i] = stack.isEmpty() ? ItemStack.EMPTY : stack.copy();
+            }
+        }
+
+        for (Map.Entry<String, Integer> entry : requirements.entrySet()) {
+            String key = entry.getKey();
+            int needed = entry.getValue();
+            ItemStack requiredStack = BlockSourceUtils.keyToStack(key);
+
+            if (requiredStack.isEmpty()) {
+                result.addRemainder(key, needed);
+                continue;
+            }
+
+            int extracted = 0;
+            for (int i = 0; i < player.inventory.getSizeInventory() && extracted < needed; i++) {
+                ItemStack stack = simulate ? workingInventory[i] : player.inventory.getStackInSlot(i);
+
+                if (stack.isEmpty()) continue;
+                if (!BlockSourceUtils.matchesRequiredStack(stack, requiredStack)) continue;
+
+                int toExtract = Math.min(stack.getCount(), needed - extracted);
+                if (toExtract <= 0) continue;
+
+                if (simulate) {
+                    stack.shrink(toExtract);
+                    if (stack.isEmpty()) workingInventory[i] = ItemStack.EMPTY;
+                } else {
+                    ItemStack extractedStack = stack.copy();
+                    extractedStack.setCount(toExtract);
+                    result.addExtracted(extractedStack, toExtract);
+
+                    stack.shrink(toExtract);
+                    if (stack.isEmpty()) player.inventory.setInventorySlotContents(i, ItemStack.EMPTY);
+                }
+
+                extracted += toExtract;
+            }
+
+            if (extracted < needed) result.addRemainder(key, needed - extracted);
+        }
+
+        return result;
+    }
+
+    @Override
+    public Map<String, Integer> checkAvailability(Map<String, Integer> requirements, BlockSourceContext context) {
+        EntityPlayer player = context.getPlayer();
         Map<String, Integer> available = new HashMap<>();
 
         for (Map.Entry<String, Integer> entry : requirements.entrySet()) {
@@ -96,73 +168,8 @@ public class InventoryBlockSource implements BlockSource {
     }
 
     @Override
-    public Map<String, Integer> batchExtract(Map<String, Integer> requirements, EntityPlayer player, boolean simulate) {
-        Map<String, Integer> remainder = new HashMap<>();
-
-        // Creative mode with no consumption - everything succeeds
-        if (player.isCreative() && !AutobuildConfig.consumeBlocksInCreative) {
-            return remainder; // Empty remainder = all extracted
-        }
-
-        // Create working copy of inventory if simulating
-        ItemStack[] inventoryCopy = null;
-
-        if (simulate) {
-            inventoryCopy = new ItemStack[player.inventory.getSizeInventory()];
-
-            for (int i = 0; i < inventoryCopy.length; i++) {
-                ItemStack stack = player.inventory.getStackInSlot(i);
-                inventoryCopy[i] = stack.isEmpty() ? ItemStack.EMPTY : stack.copy();
-            }
-        }
-
-        for (Map.Entry<String, Integer> entry : requirements.entrySet()) {
-            String key = entry.getKey();
-            int needed = entry.getValue();
-            ItemStack requiredStack = BlockSourceUtils.keyToStack(key);
-
-            if (requiredStack.isEmpty()) {
-                remainder.put(key, needed);
-                continue;
-            }
-
-            int extracted = 0;
-            ItemStack[] workingInventory = simulate ? inventoryCopy : null;
-
-            for (int i = 0; i < player.inventory.getSizeInventory() && extracted < needed; i++) {
-                ItemStack stack = simulate ? workingInventory[i] : player.inventory.getStackInSlot(i);
-
-                if (stack.isEmpty()) continue;
-                if (!matchesRequiredStack(stack, requiredStack)) continue;
-
-                int toExtract = Math.min(stack.getCount(), needed - extracted);
-                if (simulate) {
-                    workingInventory[i] = stack.getCount() == toExtract ? ItemStack.EMPTY : stack.splitStack(stack.getCount() - toExtract);
-                } else {
-                    stack.shrink(toExtract);
-
-                    if (stack.isEmpty()) {
-                        player.inventory.setInventorySlotContents(i, ItemStack.EMPTY);
-                    }
-                }
-
-                extracted += toExtract;
-            }
-
-            if (extracted < needed) remainder.put(key, needed - extracted);
-        }
-
-        return remainder;
-    }
-
-    @Override
     public String getName() {
         return "Player Inventory";
-    }
-
-    @Override
-    public int getPriority() {
-        return 0;
     }
 
     /**
@@ -176,7 +183,7 @@ public class InventoryBlockSource implements BlockSource {
             ItemStack stack = inventory.getStackInSlot(i);
 
             if (stack.isEmpty()) continue;
-            if (matchesRequiredStack(stack, requiredStack)) return i;
+            if (BlockSourceUtils.matchesRequiredStack(stack, requiredStack)) return i;
         }
 
         return -1;
@@ -190,21 +197,9 @@ public class InventoryBlockSource implements BlockSource {
             ItemStack stack = player.inventory.getStackInSlot(i);
             if (stack.isEmpty()) continue;
 
-            if (matchesRequiredStack(stack, requiredStack)) total += stack.getCount();
+            if (BlockSourceUtils.matchesRequiredStack(stack, requiredStack)) total += stack.getCount();
         }
 
         return total;
-    }
-
-    /**
-     * Checks if an ItemStack represents the given block/meta.
-     */
-    private boolean matchesRequiredStack(ItemStack stack, ItemStack requiredStack) {
-        if (stack.getItem() != requiredStack.getItem()) return false;
-        if (stack.getMetadata() != requiredStack.getMetadata()) return false;
-        if (!requiredStack.hasTagCompound()) return true;
-        if (!stack.hasTagCompound()) return false;
-
-        return NBTMatchingHelper.matchNBTCompound(requiredStack.getTagCompound(), stack.getTagCompound());
     }
 }

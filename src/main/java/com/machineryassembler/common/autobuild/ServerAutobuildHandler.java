@@ -5,20 +5,32 @@ package com.machineryassembler.common.autobuild;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.init.Blocks;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.EnumActionResult;
+import net.minecraft.util.EnumFacing;
+import net.minecraft.util.EnumHand;
+import net.minecraft.util.EnumHandSide;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.common.ForgeChunkManager;
+import net.minecraftforge.common.ForgeHooks;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.common.util.BlockSnapshot;
+import net.minecraftforge.common.util.FakePlayer;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
@@ -48,9 +60,12 @@ public class ServerAutobuildHandler {
     /**
      * Handle an autobuild request from a client.
      */
-    public static void handleAutobuildRequest(EntityPlayerMP player, ResourceLocation structureId, BlockPos origin) {
+    public static void handleAutobuildRequest(EntityPlayerMP player, ResourceLocation structureId, BlockPos origin,
+                                              BlockSourceSettings blockSourceSettings) {
         WorldServer world = player.getServerWorld();
         Structure structure = StructureRegistry.getRegistry().getStructure(structureId);
+        BlockSourceContext sourceContext = new BlockSourceContext(player, blockSourceSettings);
+        BlockSourceManager sourceManager = BlockSourceManager.getInstance();
 
         if (structure == null) {
             MachineryAssembler.LOGGER.warn("Player {} requested autobuild for unknown structure: {}",
@@ -74,8 +89,13 @@ public class ServerAutobuildHandler {
 
         StructurePattern pattern = structure.getPattern();
         ForgeChunkManager.Ticket ticket = loadChunks(world, pattern, origin);
+        List<Map.Entry<BlockPos, BlockRequirement>> sortedBlocks = prepareSortedBlocks(pattern);
+        Map<BlockPos, PlacementAction> plannedActions = new HashMap<>();
 
-        // Phase 1: Check for obstructions (TODO: if allow partial builds, we should highlight, but not abort)
+        // TODO: Benchmark and improve performance
+        // TODO: Sanity-check the NBT matching
+
+        // Phase 1: Check for obstructions
         List<BlockPos> obstructed = checkObstructions(world, pattern, origin);
         if (!obstructed.isEmpty()) {
             boolean aborted = !AutobuildConfig.allowPartialBuilds;
@@ -90,21 +110,11 @@ public class ServerAutobuildHandler {
             }
         }
 
-        // Phase 2: Check block availability
-        BlockSource source = InventoryBlockSource.INSTANCE;  // FIXME: use a provider manager!
-        Map<String, Integer> required = collectRequiredBlocks(world, pattern, origin);
-        Map<String, Integer> available = source.checkAvailability(required, player);
-
-        // Calculate missing = required - available
-        Map<String, Integer> missing = new HashMap<>();
-
-        for (Map.Entry<String, Integer> entry : required.entrySet()) {
-            String key = entry.getKey();
-            int need = entry.getValue();
-            int have = available.getOrDefault(key, 0);
-
-            if (have < need) missing.put(key, need - have);
-        }
+        // Phase 2: Simulate extraction in NBT-specific order so stricter requirements reserve
+        // matching blocks before more generic requirements can consume them.
+        Map<String, Integer> required = orderRequirementsForInclusiveMatching(
+            collectRequiredBlocks(world, origin, sortedBlocks, player, plannedActions));
+        Map<String, Integer> missing = sourceManager.batchExtractDetailed(required, sourceContext, true).getRemainder();
 
         if (!missing.isEmpty()) {
             boolean aborted = !AutobuildConfig.allowPartialBuilds;
@@ -137,23 +147,12 @@ public class ServerAutobuildHandler {
         }
 
         // Build the extracted map (toExtract - remainder)
-        Map<String, Integer> remainder = source.batchExtract(toExtract, player, false);
-        Map<String, Integer> extractedCounts = new HashMap<>();
+        BlockExtractionResult extractionResult = sourceManager.batchExtractDetailed(toExtract, sourceContext, false);
+        Map<String, Integer> extractedCounts = extractionResult.getExtracted();
 
-        for (Map.Entry<String, Integer> entry : toExtract.entrySet()) {
-            String key = entry.getKey();
-            int requested = entry.getValue();
-            int notExtracted = remainder.getOrDefault(key, 0);
-            int actuallyExtracted = requested - notExtracted;
-
-            if (actuallyExtracted > 0) extractedCounts.put(key, actuallyExtracted);
-        }
-
-        // Phase 4: Build sorted block list and start throttled placement
-        List<Map.Entry<BlockPos, BlockRequirement>> sortedBlocks = prepareSortedBlocks(pattern);
-
+        // Phase 4: Start throttled placement with item-driven actions.
         ThrottledPlacementTask task = new ThrottledPlacementTask(
-            world, origin, sortedBlocks, extractedCounts, missing, player, ticket, structureId);
+            world, origin, sortedBlocks, extractedCounts, missing, plannedActions, player, ticket, structureId);
         task.start();
     }
 
@@ -204,8 +203,7 @@ public class ServerAutobuildHandler {
             if (requirement.matches(world, worldPos, false)) continue;
 
             // Check if there's an obstruction (non-air, non-replaceable block)
-            if (currentState.getBlock() != Blocks.AIR &&
-                !currentState.getBlock().isReplaceable(world, worldPos)) {
+            if (isObstructed(world, worldPos, currentState)) {
                 obstructed.add(worldPos);
             }
         }
@@ -214,24 +212,24 @@ public class ServerAutobuildHandler {
     }
 
     /**
-     * Collect all required blocks (those not already placed correctly).
+     * Sort stricter NBT requirements first so simulated and real extraction reserve the most
+     * specific blocks before generic requirements can claim them.
      */
-    private static Map<String, Integer> collectRequiredBlocks(WorldServer world, StructurePattern pattern, BlockPos origin) {
-        Map<String, Integer> required = new HashMap<>();
+    private static Map<String, Integer> orderRequirementsForInclusiveMatching(Map<String, Integer> requirements) {
+        List<Map.Entry<String, Integer>> orderedEntries = new ArrayList<>(requirements.entrySet());
+        orderedEntries.sort((left, right) -> {
+            int specificityComparison = Integer.compare(BlockSourceUtils.getKeySpecificity(right.getKey()), BlockSourceUtils.getKeySpecificity(left.getKey()));
+            if (specificityComparison != 0) return specificityComparison;
 
-        for (Map.Entry<BlockPos, BlockRequirement> entry : pattern.getPattern().entrySet()) {
-            BlockPos relPos = entry.getKey();
-            BlockPos worldPos = origin.add(relPos);
-            BlockRequirement requirement = entry.getValue();
+            return left.getKey().compareTo(right.getKey());
+        });
 
-            // Skip if already correct
-            if (requirement.matches(world, worldPos, false)) continue;
-
-            String key = BlockSourceUtils.requirementToKey(requirement);
-            required.merge(key, 1, Integer::sum);
+        Map<String, Integer> orderedRequirements = new LinkedHashMap<>();
+        for (Map.Entry<String, Integer> entry : orderedEntries) {
+            orderedRequirements.put(entry.getKey(), entry.getValue());
         }
 
-        return required;
+        return orderedRequirements;
     }
 
     /**
@@ -245,6 +243,315 @@ public class ServerAutobuildHandler {
             .thenComparingInt(e -> e.getKey().getZ()));
 
         return sortedBlocks;
+    }
+
+    /**
+     * Collect required items by planning placements instead of counting pattern cells.
+     * One successful item use can satisfy multiple structure positions.
+     */
+    private static Map<String, Integer> collectRequiredBlocks(WorldServer world, BlockPos origin,
+                                                              List<Map.Entry<BlockPos, BlockRequirement>> sortedBlocks,
+                                                              EntityPlayerMP player,
+                                                              Map<BlockPos, PlacementAction> plannedActions) {
+        Map<String, Integer> required = new HashMap<>();
+        Set<BlockPos> satisfied = new HashSet<>();
+
+        for (Map.Entry<BlockPos, BlockRequirement> entry : sortedBlocks) {
+            BlockPos relPos = entry.getKey();
+            BlockPos worldPos = origin.add(relPos);
+            BlockRequirement requirement = entry.getValue();
+            IBlockState currentState = world.getBlockState(worldPos);
+
+            if (satisfied.contains(relPos) || requirement.matches(world, worldPos, false)) {
+                satisfied.add(relPos);
+                continue;
+            }
+
+            if (isObstructed(world, worldPos, currentState)) continue;
+
+            PlacementAction action = planPlacementAction(world, origin, sortedBlocks, relPos, requirement, player);
+            if (action == null) {
+                String key = BlockSourceUtils.requirementToKey(requirement);
+                required.merge(key, 1, Integer::sum);
+                satisfied.add(relPos);
+                continue;
+            }
+
+            plannedActions.put(relPos, action);
+            required.merge(action.extractedKey, 1, Integer::sum);
+            satisfied.addAll(action.coveredPositions);
+        }
+
+        return required;
+    }
+
+    private static PlacementAction planPlacementAction(WorldServer world,
+                                                       BlockPos origin,
+                                                       List<Map.Entry<BlockPos, BlockRequirement>> sortedBlocks,
+                                                       BlockPos anchorRelPos,
+                                                       BlockRequirement anchorRequirement,
+                                                       EntityPlayerMP player) {
+        ItemStack requiredStack = anchorRequirement.getRequiredStack();
+        if (requiredStack.isEmpty()) return null;
+
+        PlacementAction bestAction = null;
+        String extractedKey = BlockSourceUtils.stackToKey(requiredStack);
+        SimulationPlayer simulationPlayer = new SimulationPlayer(world, player);
+
+        for (PlacementAttempt attempt : createPlacementAttempts(anchorRelPos, requiredStack, player)) {
+            PlacementProbeResult probe = probePlacement(world, origin, sortedBlocks, attempt, player, simulationPlayer);
+            if (probe == null) continue;
+            if (!probe.coveredPositions.contains(anchorRelPos)) continue;
+
+            PlacementAction candidate = new PlacementAction(extractedKey, attempt, probe.coveredPositions);
+
+            if (isBetterPlacementAction(candidate, bestAction, anchorRelPos)) {
+                bestAction = candidate;
+            }
+        }
+
+        return bestAction;
+    }
+
+    private static boolean isBetterPlacementAction(PlacementAction candidate,
+                                                   PlacementAction currentBest,
+                                                   BlockPos anchorRelPos) {
+        if (candidate == null) return false;
+        if (currentBest == null) return true;
+
+        int coverageComparison = Integer.compare(
+            candidate.coveredPositions.size(), currentBest.coveredPositions.size());
+        if (coverageComparison != 0) return coverageComparison > 0;
+
+        boolean candidateTargetsAnchor = candidate.attempt.targetRelPos.equals(anchorRelPos);
+        boolean currentTargetsAnchor = currentBest.attempt.targetRelPos.equals(anchorRelPos);
+        if (candidateTargetsAnchor != currentTargetsAnchor) return candidateTargetsAnchor;
+
+        int candidateAnchorDistance = getManhattanDistance(candidate.attempt.clickedRelPos, anchorRelPos);
+        int currentAnchorDistance = getManhattanDistance(currentBest.attempt.clickedRelPos, anchorRelPos);
+        if (candidateAnchorDistance != currentAnchorDistance) return candidateAnchorDistance < currentAnchorDistance;
+
+        return candidate.extractedKey.compareTo(currentBest.extractedKey) < 0;
+    }
+
+    private static int getManhattanDistance(BlockPos left, BlockPos right) {
+        return Math.abs(left.getX() - right.getX())
+            + Math.abs(left.getY() - right.getY())
+            + Math.abs(left.getZ() - right.getZ());
+    }
+
+    private static List<PlacementAttempt> createPlacementAttempts(BlockPos anchorRelPos,
+                                                                  ItemStack requiredStack,
+                                                                  EntityPlayerMP player) {
+        List<PlacementAttempt> attempts = new ArrayList<>();
+        List<BlockPos> targetCandidates = getTargetCandidates(anchorRelPos);
+        List<EnumFacing> faceOrder = getPlacementFaceOrder();
+        List<EnumFacing> horizontalOrder = getHorizontalFacingOrder(player, anchorRelPos);
+
+        for (BlockPos targetRelPos : targetCandidates) {
+            for (EnumFacing facing : faceOrder) {
+                addPlacementAttempt(attempts, requiredStack, targetRelPos, targetRelPos, facing, horizontalOrder);
+                addPlacementAttempt(attempts, requiredStack, targetRelPos, targetRelPos.offset(facing.getOpposite()),
+                    facing, horizontalOrder);
+            }
+        }
+
+        return attempts;
+    }
+
+    private static List<BlockPos> getTargetCandidates(BlockPos anchorRelPos) {
+        List<BlockPos> targets = new ArrayList<>();
+        targets.add(anchorRelPos);
+
+        targets.add(anchorRelPos.down());
+        targets.add(anchorRelPos.up());
+
+        for (EnumFacing horizontal : EnumFacing.HORIZONTALS) {
+            targets.add(anchorRelPos.offset(horizontal));
+        }
+
+        return targets;
+    }
+
+    private static List<EnumFacing> getPlacementFaceOrder() {
+        List<EnumFacing> faces = new ArrayList<>();
+        faces.add(EnumFacing.UP);
+        faces.add(EnumFacing.NORTH);
+        faces.add(EnumFacing.SOUTH);
+        faces.add(EnumFacing.WEST);
+        faces.add(EnumFacing.EAST);
+        faces.add(EnumFacing.DOWN);
+        return faces;
+    }
+
+    private static List<EnumFacing> getHorizontalFacingOrder(EntityPlayerMP player, BlockPos anchorRelPos) {
+        List<EnumFacing> facings = new ArrayList<>();
+        EnumFacing playerFacing = player.getHorizontalFacing();
+        facings.add(playerFacing);
+
+        for (EnumFacing facing : EnumFacing.HORIZONTALS) {
+            if (facing == playerFacing) continue;
+
+            facings.add(facing);
+        }
+
+        return facings;
+    }
+
+    private static void addPlacementAttempt(List<PlacementAttempt> attempts,
+                                            ItemStack requiredStack,
+                                            BlockPos targetRelPos,
+                                            BlockPos clickedRelPos,
+                                            EnumFacing facing,
+                                            List<EnumFacing> horizontalOrder) {
+        float hitX = facing.getAxis() == EnumFacing.Axis.X
+            ? (facing.getAxisDirection() == EnumFacing.AxisDirection.POSITIVE ? 1.0F : 0.0F)
+            : 0.5F;
+        float hitY = facing.getAxis() == EnumFacing.Axis.Y
+            ? (facing.getAxisDirection() == EnumFacing.AxisDirection.POSITIVE ? 1.0F : 0.0F)
+            : 0.5F;
+        float hitZ = facing.getAxis() == EnumFacing.Axis.Z
+            ? (facing.getAxisDirection() == EnumFacing.AxisDirection.POSITIVE ? 1.0F : 0.0F)
+            : 0.5F;
+
+        for (EnumFacing horizontal : horizontalOrder) {
+            attempts.add(new PlacementAttempt(requiredStack, targetRelPos, clickedRelPos,
+                facing, hitX, hitY, hitZ, horizontal));
+        }
+    }
+
+    private static PlacementProbeResult probePlacement(WorldServer world,
+                                                       BlockPos origin,
+                                                       List<Map.Entry<BlockPos, BlockRequirement>> sortedBlocks,
+                                                       PlacementAttempt attempt,
+                                                       EntityPlayerMP player,
+                                                       SimulationPlayer simulationPlayer) {
+        PlacementProbeResult probeResult = probePlacementWithPlayer(
+            world,
+            origin,
+            sortedBlocks,
+            attempt,
+            simulationPlayer,
+            player
+        );
+
+        if (probeResult != null) return probeResult;
+
+        return probePlacementWithPlayer(world, origin, sortedBlocks, attempt, player, player);
+    }
+
+    private static PlacementProbeResult probePlacementWithPlayer(WorldServer world,
+                                                                 BlockPos origin,
+                                                                 List<Map.Entry<BlockPos, BlockRequirement>> sortedBlocks,
+                                                                 PlacementAttempt attempt,
+                                                                 EntityPlayerMP placementPlayer,
+                                                                 EntityPlayerMP sourcePlayer) {
+        BlockPos clickedPos = origin.add(attempt.clickedRelPos);
+        BlockPos targetPos = origin.add(attempt.targetRelPos);
+
+        if (!world.isBlockLoaded(clickedPos) || !world.isBlockLoaded(targetPos)) return null;
+
+        Set<BlockPos> satisfiedBefore = getSatisfiedPositions(world, origin, sortedBlocks);
+        List<BlockSnapshot> previousSnapshots = new ArrayList<>(world.capturedBlockSnapshots);
+        world.capturedBlockSnapshots.clear();
+        List<BlockSnapshot> probeSnapshots = new ArrayList<>();
+        Set<BlockPos> covered = new HashSet<>();
+        ItemStack originalMainHand = placementPlayer.getHeldItem(EnumHand.MAIN_HAND);
+        float originalYaw = placementPlayer.rotationYaw;
+        float originalPrevYaw = placementPlayer.prevRotationYaw;
+
+        if (attempt.horizontalFacing != null) {
+            placementPlayer.rotationYaw = attempt.horizontalFacing.getHorizontalAngle();
+            placementPlayer.prevRotationYaw = placementPlayer.rotationYaw;
+        } else {
+            placementPlayer.rotationYaw = sourcePlayer.rotationYaw;
+            placementPlayer.prevRotationYaw = sourcePlayer.rotationYaw;
+        }
+
+        placementPlayer.setHeldItem(EnumHand.MAIN_HAND, attempt.stack.copy());
+
+        EnumActionResult result;
+
+        try {
+            world.captureBlockSnapshots = true;
+            result = placementPlayer.getHeldItem(EnumHand.MAIN_HAND).getItem().onItemUse(
+                placementPlayer,
+                world,
+                clickedPos,
+                EnumHand.MAIN_HAND,
+                attempt.clickedFace,
+                attempt.hitX,
+                attempt.hitY,
+                attempt.hitZ);
+            world.captureBlockSnapshots = false;
+
+            probeSnapshots = new ArrayList<>(world.capturedBlockSnapshots);
+            if (result == EnumActionResult.SUCCESS) {
+                covered = findSatisfiedPositions(world, origin, sortedBlocks, satisfiedBefore);
+            }
+        } finally {
+            world.captureBlockSnapshots = false;
+            if (probeSnapshots.isEmpty() && !world.capturedBlockSnapshots.isEmpty()) {
+                probeSnapshots = new ArrayList<>(world.capturedBlockSnapshots);
+            }
+
+            restoreSnapshots(world, probeSnapshots);
+            world.capturedBlockSnapshots.clear();
+            world.capturedBlockSnapshots.addAll(previousSnapshots);
+            placementPlayer.setHeldItem(EnumHand.MAIN_HAND, originalMainHand);
+            placementPlayer.rotationYaw = originalYaw;
+            placementPlayer.prevRotationYaw = originalPrevYaw;
+        }
+
+        if (result != EnumActionResult.SUCCESS) return null;
+        if (covered.isEmpty()) return null;
+
+        return new PlacementProbeResult(covered);
+    }
+
+    private static Set<BlockPos> getSatisfiedPositions(WorldServer world,
+                                                       BlockPos origin,
+                                                       List<Map.Entry<BlockPos, BlockRequirement>> sortedBlocks) {
+        Set<BlockPos> satisfied = new HashSet<>();
+
+        for (Map.Entry<BlockPos, BlockRequirement> entry : sortedBlocks) {
+            if (!entry.getValue().matches(world, origin.add(entry.getKey()), false)) continue;
+
+            satisfied.add(entry.getKey());
+        }
+
+        return satisfied;
+    }
+
+    private static Set<BlockPos> findSatisfiedPositions(WorldServer world,
+                                                        BlockPos origin,
+                                                        List<Map.Entry<BlockPos, BlockRequirement>> sortedBlocks,
+                                                        Set<BlockPos> satisfiedBefore) {
+        Set<BlockPos> covered = new HashSet<>();
+        for (Map.Entry<BlockPos, BlockRequirement> entry : sortedBlocks) {
+            if (satisfiedBefore.contains(entry.getKey())) continue;
+            if (!entry.getValue().matches(world, origin.add(entry.getKey()), false)) continue;
+
+            covered.add(entry.getKey());
+        }
+
+        return covered;
+    }
+
+    private static void restoreSnapshots(WorldServer world, List<BlockSnapshot> snapshots) {
+        for (int index = snapshots.size() - 1; index >= 0; index--) {
+            try {
+                world.restoringBlockSnapshots = true;
+                snapshots.get(index).restore(true, false);
+            } finally {
+                world.restoringBlockSnapshots = false;
+            }
+        }
+    }
+
+    private static boolean isObstructed(WorldServer world, BlockPos pos, IBlockState state) {
+        return state.getBlock() != Blocks.AIR
+            && !state.getBlock().isReplaceable(world, pos);
     }
 
     // ==================== Throttled Placement ====================
@@ -294,9 +601,12 @@ public class ServerAutobuildHandler {
         private final List<Map.Entry<BlockPos, BlockRequirement>> sortedBlocks;
         private final Map<String, Integer> remaining;
         private final Map<String, Integer> missing;
+        private final Map<BlockPos, PlacementAction> plannedActions;
+        private final Map<BlockPos, BlockRequirement> requirementsByPos;
         private final EntityPlayerMP player;
         private final ForgeChunkManager.Ticket ticket;
         private final ResourceLocation structureId;
+        private final Set<BlockPos> accountedSatisfiedPositions = new HashSet<>();
 
         private int nextIndex = 0;
         private int placed = 0;
@@ -311,6 +621,7 @@ public class ServerAutobuildHandler {
                                List<Map.Entry<BlockPos, BlockRequirement>> sortedBlocks,
                                Map<String, Integer> extractedCounts,
                                Map<String, Integer> missing,
+                               Map<BlockPos, PlacementAction> plannedActions,
                                EntityPlayerMP player,
                                ForgeChunkManager.Ticket ticket,
                                ResourceLocation structureId) {
@@ -319,9 +630,15 @@ public class ServerAutobuildHandler {
             this.sortedBlocks = sortedBlocks;
             this.remaining = new HashMap<>(extractedCounts);
             this.missing = missing;
+            this.plannedActions = new HashMap<>(plannedActions);
+            this.requirementsByPos = new HashMap<>();
             this.player = player;
             this.ticket = ticket;
             this.structureId = structureId;
+
+            for (Map.Entry<BlockPos, BlockRequirement> entry : sortedBlocks) {
+                requirementsByPos.put(entry.getKey(), entry.getValue());
+            }
         }
 
         /**
@@ -342,9 +659,10 @@ public class ServerAutobuildHandler {
             if (player.hasDisconnected()) {
                 finish();
 
-                // TODO: handle the remaining blocks,
-                // they are currently lost from the player's inventory but not placed in the world.
-                // We should ideally return them to the player
+                // TODO: Handle the remaining blocks. They are currently lost from the player's inventory,
+                // but not placed in the world. We should ideally return them to the player
+                // whenever they log back in, or send them to EMC/AE2 if those providers are present.
+                // Something should only be sent to EMC if it has no NBT data, to avoid losing important stuff.
 
                 return true;
             }
@@ -356,7 +674,10 @@ public class ServerAutobuildHandler {
             int blocksThisTick = (int) blockBudget;
             blockBudget -= blocksThisTick;
 
-            for (int i = 0; i < blocksThisTick && nextIndex < sortedBlocks.size(); i++) placeNext();
+            int placementsThisTick = 0;
+            while (placementsThisTick < blocksThisTick && nextIndex < sortedBlocks.size()) {
+                if (placeNext()) placementsThisTick++;
+            }
 
             // Check if we're done
             if (nextIndex >= sortedBlocks.size()) {
@@ -371,8 +692,8 @@ public class ServerAutobuildHandler {
         /**
          * Place the next block in the sorted list.
          */
-        private void placeNext() {
-            if (nextIndex >= sortedBlocks.size()) return;
+        private boolean placeNext() {
+            if (nextIndex >= sortedBlocks.size()) return false;
 
             Map.Entry<BlockPos, BlockRequirement> entry = sortedBlocks.get(nextIndex);
             nextIndex++;
@@ -383,60 +704,167 @@ public class ServerAutobuildHandler {
 
             // Check if already correct
             if (requirement.matches(world, worldPos, false)) {
-                skipped++;
+                if (accountedSatisfiedPositions.add(relPos)) skipped++;
 
-                return;
+                return false;
             }
 
-            IBlockState targetState = requirement.getSampleState();
-            String key = BlockSourceUtils.requirementToKey(requirement);
-
-            // Check if we have the block
-            int available = remaining.getOrDefault(key, 0);
-
-            if (available <= 0) {
+            IBlockState currentState = world.getBlockState(worldPos);
+            if (isObstructed(world, worldPos, currentState)) {
+                issues.add(new PlacementIssue(IssueType.WRONG_BLOCK, worldPos,
+                    BlockSourceUtils.requirementToKey(requirement),
+                    BlockSourceUtils.stateToKey(currentState)));
                 failed++;
 
-                return;
+                return false;
             }
 
-            // Decrement the count
-            remaining.put(key, available - 1);
+            PlacementAction action = plannedActions.remove(relPos);
+            if (action == null) {
+                action = planPlacementAction(world, origin, sortedBlocks, relPos, requirement, player);
+            }
 
-            // TODO: should we just not throttle skipped/failed blocks and move on to the next one immediately, instead of counting them against the block budget?
+            String requiredKey = BlockSourceUtils.requirementToKey(requirement);
+
+            // Check if we have the block
+            if (action == null) {
+                failed++;
+
+                return false;
+            }
+
+            String extractedKey = consumeMatchingExtractedKey(action.extractedKey);
+            if (extractedKey == null) {
+                failed++;
+
+                return false;
+            }
+
             // Check for external interference before placing
-            IBlockState currentState = world.getBlockState(worldPos);
+            currentState = world.getBlockState(worldPos);
 
-            if (currentState.getBlock() != Blocks.AIR &&
-                !currentState.getBlock().isReplaceable(world, worldPos)) {
+            if (isObstructed(world, worldPos, currentState)) {
 
                 // Something appeared where we expected air
                 if (requirement.matches(world, worldPos, false)) {
                     // Lucky - external interference placed correct block
                     issues.add(new PlacementIssue(IssueType.CORRECT_EXTERNAL, worldPos,
-                        BlockSourceUtils.stateToKey(targetState),
+                        requiredKey,
                         BlockSourceUtils.stateToKey(currentState)));
                     skipped++;
                 } else {
                     // External interference placed wrong block
                     issues.add(new PlacementIssue(IssueType.WRONG_BLOCK, worldPos,
-                        BlockSourceUtils.stateToKey(targetState),
+                        requiredKey,
                         BlockSourceUtils.stateToKey(currentState)));
                     failed++;
                 }
 
-                return;
+                return false;
             }
 
-            // Place the block
-            boolean success = world.setBlockState(worldPos, targetState, 3);
-
+            // Place the block with player-handling to ensure correct tile entity data and placement events
+            // This ensures that correct ownership and state are applied,
+            // which is crucial for tile entities and modded blocks that rely on placement events.
+            ItemStack extractedStack = BlockSourceUtils.keyToStack(extractedKey);
+            boolean success = placeExtractedBlock(action.attempt, extractedStack);
             if (success) {
-                placed++;
+                Set<BlockPos> covered = new HashSet<>();
+                for (BlockPos coveredPos : action.coveredPositions) {
+                    BlockRequirement coveredRequirement = requirementsByPos.get(coveredPos);
+                    if (coveredRequirement == null) continue;
+                    if (!coveredRequirement.matches(world, origin.add(coveredPos), false)) continue;
+
+                    covered.add(coveredPos);
+                }
+
+                if (!covered.contains(relPos)) {
+                    issues.add(new PlacementIssue(IssueType.PLACEMENT_FAILED, worldPos,
+                        requiredKey, ""));
+                    failed++;
+
+                    return false;
+                } else {
+                    for (BlockPos coveredPos : covered) {
+                        if (accountedSatisfiedPositions.add(coveredPos)) placed++;
+                    }
+
+                    return true;
+                }
             } else {
                 issues.add(new PlacementIssue(IssueType.PLACEMENT_FAILED, worldPos,
-                    BlockSourceUtils.stateToKey(targetState), ""));
+                    requiredKey, ""));
                 failed++;
+
+                return false;
+            }
+        }
+
+        private String consumeMatchingExtractedKey(String requiredKey) {
+            String bestKey = null;
+            int bestSpecificity = Integer.MAX_VALUE;
+
+            ItemStack requiredStack = BlockSourceUtils.keyToStack(requiredKey);
+
+            for (Map.Entry<String, Integer> entry : remaining.entrySet()) {
+                if (entry.getValue() <= 0) continue;
+
+                ItemStack availableStack = BlockSourceUtils.keyToStack(entry.getKey());
+                if (!BlockSourceUtils.matchesRequiredStack(availableStack, requiredStack)) continue;
+
+                int specificity = BlockSourceUtils.getKeySpecificity(entry.getKey());
+                if (specificity > bestSpecificity) continue;
+                if (specificity == bestSpecificity && bestKey != null && entry.getKey().compareTo(bestKey) >= 0) continue;
+
+                bestKey = entry.getKey();
+                bestSpecificity = specificity;
+            }
+
+            if (bestKey == null) return null;
+
+            int available = remaining.get(bestKey) - 1;
+            if (available <= 0) {
+                remaining.remove(bestKey);
+            } else {
+                remaining.put(bestKey, available);
+            }
+
+            return bestKey;
+        }
+
+        /**
+         * Place a block using the real item-use pipeline so modded items can place however they need to.
+         */
+        private boolean placeExtractedBlock(PlacementAttempt attempt, ItemStack extractedStack) {
+            BlockPos clickedPos = origin.add(attempt.clickedRelPos);
+            ItemStack originalMainHand = player.getHeldItem(EnumHand.MAIN_HAND);
+            float originalYaw = player.rotationYaw;
+            float originalPrevYaw = player.prevRotationYaw;
+
+            try {
+                if (attempt.horizontalFacing != null) {
+                    player.rotationYaw = attempt.horizontalFacing.getHorizontalAngle();
+                    player.prevRotationYaw = player.rotationYaw;
+                }
+
+                player.setHeldItem(EnumHand.MAIN_HAND, extractedStack);
+
+                EnumActionResult result = ForgeHooks.onPlaceItemIntoWorld(
+                    player.getHeldItem(EnumHand.MAIN_HAND),
+                    player,
+                    world,
+                    clickedPos,
+                    attempt.clickedFace,
+                    attempt.hitX,
+                    attempt.hitY,
+                    attempt.hitZ,
+                    EnumHand.MAIN_HAND);
+
+                return result == EnumActionResult.SUCCESS;
+            } finally {
+                player.setHeldItem(EnumHand.MAIN_HAND, originalMainHand);
+                player.rotationYaw = originalYaw;
+                player.prevRotationYaw = originalPrevYaw;
             }
         }
 
@@ -468,6 +896,91 @@ public class ServerAutobuildHandler {
 
             // Release chunk loading ticket
             if (ticket != null) ForgeChunkManager.releaseTicket(ticket);
+        }
+    }
+
+    private static class PlacementAction {
+
+        private final String extractedKey;
+        private final PlacementAttempt attempt;
+        private final Set<BlockPos> coveredPositions;
+
+        private PlacementAction(String extractedKey,
+                                PlacementAttempt attempt, Set<BlockPos> coveredPositions) {
+            this.extractedKey = extractedKey;
+            this.attempt = attempt;
+            this.coveredPositions = coveredPositions;
+        }
+    }
+
+    private static class PlacementAttempt {
+
+        private final ItemStack stack;
+        private final BlockPos targetRelPos;
+        private final BlockPos clickedRelPos;
+        private final EnumFacing clickedFace;
+        private final float hitX;
+        private final float hitY;
+        private final float hitZ;
+        private final EnumFacing horizontalFacing;
+
+        private PlacementAttempt(ItemStack stack, BlockPos targetRelPos, BlockPos clickedRelPos,
+                                 EnumFacing clickedFace, float hitX, float hitY, float hitZ,
+                                 EnumFacing horizontalFacing) {
+            this.stack = stack;
+            this.targetRelPos = targetRelPos;
+            this.clickedRelPos = clickedRelPos;
+            this.clickedFace = clickedFace;
+            this.hitX = hitX;
+            this.hitY = hitY;
+            this.hitZ = hitZ;
+            this.horizontalFacing = horizontalFacing;
+        }
+    }
+
+    private static class PlacementProbeResult {
+
+        private final Set<BlockPos> coveredPositions;
+
+        private PlacementProbeResult(Set<BlockPos> coveredPositions) {
+            this.coveredPositions = coveredPositions;
+        }
+    }
+
+    private static class SimulationPlayer extends FakePlayer {
+
+        private final EntityPlayerMP sourcePlayer;
+
+        private SimulationPlayer(WorldServer world, EntityPlayerMP sourcePlayer) {
+            super(world, sourcePlayer.getGameProfile());
+            this.sourcePlayer = sourcePlayer;
+
+            capabilities.allowEdit = sourcePlayer.capabilities.allowEdit;
+            capabilities.isCreativeMode = sourcePlayer.capabilities.isCreativeMode;
+            capabilities.allowFlying = sourcePlayer.capabilities.allowFlying;
+            capabilities.disableDamage = sourcePlayer.capabilities.disableDamage;
+            capabilities.isFlying = sourcePlayer.capabilities.isFlying;
+
+            inventory.currentItem = sourcePlayer.inventory.currentItem;
+            for (int slot = 0; slot < sourcePlayer.inventory.getSizeInventory(); slot++) {
+                ItemStack sourceStack = sourcePlayer.inventory.getStackInSlot(slot);
+                inventory.setInventorySlotContents(slot, sourceStack.isEmpty() ? ItemStack.EMPTY : sourceStack.copy());
+            }
+
+            setPositionAndRotation(sourcePlayer.posX, sourcePlayer.posY, sourcePlayer.posZ,
+                sourcePlayer.rotationYaw, sourcePlayer.rotationPitch);
+            rotationYawHead = sourcePlayer.rotationYawHead;
+            renderYawOffset = sourcePlayer.renderYawOffset;
+        }
+
+        @Override
+        public EnumHandSide getPrimaryHand() {
+            return sourcePlayer.getPrimaryHand();
+        }
+
+        @Override
+        public Vec3d getPositionVector() {
+            return new Vec3d(posX, posY, posZ);
         }
     }
 }

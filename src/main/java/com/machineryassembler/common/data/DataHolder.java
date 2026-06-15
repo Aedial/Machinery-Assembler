@@ -1,26 +1,46 @@
 package com.machineryassembler.common.data;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import com.machineryassembler.MachineryAssembler;
 
 
 public class DataHolder {
 
+    private File altStructuresDirectory;
     private File structuresDirectory;
+    private final List<File> structuresDirectories = new ArrayList<>();
 
     public void setup(File configDir) {
-        File modConfigDir = new File(configDir, MachineryAssembler.MODID);
-        if (!modConfigDir.exists()) modConfigDir.mkdirs();
+        // Alternative structures directory for temporary storage of recorded structures
+        File minecraftDirectory = configDir.getParentFile();
+        altStructuresDirectory = new File(minecraftDirectory == null ? configDir : minecraftDirectory, "multiblocks");
+        if (!altStructuresDirectory.exists()) {
+            altStructuresDirectory.mkdirs();
+            MachineryAssembler.LOGGER.info("[Machinery Assembler] Created structures directory at {}", altStructuresDirectory.getAbsolutePath());
+        }
 
-        structuresDirectory = new File(modConfigDir, "structures");
-        if (!structuresDirectory.exists()) {
-            structuresDirectory.mkdirs();
-            MachineryAssembler.LOGGER.info("[Machinery Assembler] Created structures directory at {}", structuresDirectory.getAbsolutePath());
+        structuresDirectory = new File(new File(configDir, MachineryAssembler.MODID), "structures");
+
+        structuresDirectories.clear();
+        structuresDirectories.add(altStructuresDirectory);
+
+        if (!altStructuresDirectory.equals(structuresDirectory)) {
+            structuresDirectories.add(structuresDirectory);
         }
     }
 
-    public File getStructuresDirectory() {
-        return structuresDirectory;
+    /**
+     * @return The directory where structures are saved when using the in-game recording tool.
+     */
+    public File getStructuresSaveDirectory() {
+        return altStructuresDirectory;
+    }
+
+    public List<File> getStructuresDirectories() {
+        return Collections.unmodifiableList(structuresDirectories);
     }
 }
