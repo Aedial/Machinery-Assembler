@@ -84,7 +84,7 @@ public class BlockSourceManager {
     public BlockExtractionResult batchExtractDetailed(Map<String, Integer> requirements, BlockSourceContext context,
                                                       boolean simulate) {
         Map<String, Integer> remainingRequirements = new LinkedHashMap<>(requirements);
-        Map<String, Integer> extracted = new LinkedHashMap<>();
+        BlockExtractionResult result = new BlockExtractionResult();
 
         for (BlockSourceProviderId providerId : context.getSettings().getProviderOrder()) {
             if (!context.getSettings().isEnabled(providerId)) continue;
@@ -97,12 +97,17 @@ public class BlockSourceManager {
             remainingRequirements = new LinkedHashMap<>(sourceResult.getRemainder());
 
             for (Map.Entry<String, Integer> entry : sourceResult.getExtracted().entrySet()) {
-                extracted.merge(entry.getKey(), entry.getValue(), Integer::sum);
+                result.addExtractedKey(entry.getKey(), entry.getValue());
+                result.addSourceContribution(entry.getKey(), providerId, entry.getValue());
             }
 
             if (remainingRequirements.isEmpty()) break;
         }
 
-        return new BlockExtractionResult(remainingRequirements, extracted);
+        for (Map.Entry<String, Integer> entry : remainingRequirements.entrySet()) {
+            result.addRemainder(entry.getKey(), entry.getValue());
+        }
+
+        return result;
     }
 }

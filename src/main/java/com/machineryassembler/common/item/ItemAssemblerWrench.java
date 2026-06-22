@@ -30,6 +30,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import appeng.api.features.INetworkEncodable;
 
 import com.machineryassembler.MachineryAssembler;
+import com.machineryassembler.Tags;
 import com.machineryassembler.client.gui.GuiWrenchSelector;
 import com.machineryassembler.common.autobuild.BlockSourceProviderId;
 import com.machineryassembler.common.autobuild.BlockSourceSettings;
@@ -57,8 +58,8 @@ public class ItemAssemblerWrench extends Item implements INetworkEncodable {
    // TODO: Add a keybind for the providers menu. It should allow enabling/disabling and reordering.
 
     public ItemAssemblerWrench() {
-        setRegistryName(MachineryAssembler.MODID, "assembler_wrench");
-        setTranslationKey(MachineryAssembler.MODID + ".assembler_wrench");
+        setRegistryName(Tags.MODID, "assembler_wrench");
+        setTranslationKey(Tags.MODID + ".assembler_wrench");
         setMaxStackSize(1);
         setCreativeTab(CreativeTabs.TOOLS);
     }

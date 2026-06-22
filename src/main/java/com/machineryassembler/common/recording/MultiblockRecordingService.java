@@ -131,6 +131,11 @@ public final class MultiblockRecordingService {
         tileData.removeTag("Lock");
         tileData.removeTag("LootTable");
         tileData.removeTag("LootTableSeed");
+
+        // Empty ForgeData tags are common and usually noise, so remove them to reduce bloat
+        if (tileData.hasKey("ForgeData") && tileData.getTag("ForgeData").isEmpty()) {
+            tileData.removeTag("ForgeData");
+        }
     }
 
     private static String createStructureId(File directory) {

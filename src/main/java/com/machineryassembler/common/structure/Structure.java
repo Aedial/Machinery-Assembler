@@ -32,7 +32,7 @@ import net.minecraftforge.fml.common.registry.ForgeRegistries;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import com.machineryassembler.MachineryAssembler;
+import com.machineryassembler.Tags;
 import com.machineryassembler.common.util.nbt.NBTJsonDeserializer;
 
 /**
@@ -50,7 +50,7 @@ public class Structure {
     protected StructureOutput output = null;
 
     public Structure(String registryName) {
-        this.registryName = new ResourceLocation(MachineryAssembler.MODID, registryName);
+        this.registryName = new ResourceLocation(Tags.MODID, registryName);
     }
 
     public Structure(ResourceLocation registryName) {
@@ -328,7 +328,9 @@ public class Structure {
             Block block = ForgeRegistries.BLOCKS.getValue(res);
             if (block == null) throw new JsonParseException("Couldn't find block: '" + res + "'");
 
-            if (meta == -1) return BlockStateMatcher.of(block);
+            // Structure JSON without an explicit meta should behave like metadata 0,
+            // not whatever state the block constructor chose as its default.
+            if (meta == -1) return BlockStateMatcher.of(block.getStateFromMeta(0));
 
             return BlockStateMatcher.of(block.getStateFromMeta(meta));
         }

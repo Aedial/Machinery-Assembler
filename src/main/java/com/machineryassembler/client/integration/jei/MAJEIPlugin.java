@@ -16,6 +16,7 @@ import mezz.jei.api.JEIPlugin;
 import mezz.jei.api.recipe.IRecipeCategoryRegistration;
 
 import com.machineryassembler.MachineryAssembler;
+import com.machineryassembler.Tags;
 import com.machineryassembler.common.structure.Structure;
 import com.machineryassembler.common.structure.StructureRegistry;
 
@@ -27,7 +28,7 @@ import com.machineryassembler.common.structure.StructureRegistry;
 @JEIPlugin
 public class MAJEIPlugin implements IModPlugin {
 
-    public static final String CATEGORY_STRUCTURE_PREVIEW = MachineryAssembler.MODID + ".structure_preview";
+    public static final String CATEGORY_STRUCTURE_PREVIEW = Tags.MODID + ".structure_preview";
     public static final List<StructurePreviewWrapper> STRUCTURE_WRAPPERS = Lists.newArrayList();
     private static final Map<ResourceLocation, StructurePreviewWrapper> WRAPPER_MAP = new HashMap<>();
 
@@ -41,12 +42,12 @@ public class MAJEIPlugin implements IModPlugin {
      */
     public static void onStructuresReloaded() {
         if (!registered || jeiRuntime == null) {
-            MachineryAssembler.LOGGER.warn("[Machinery Assembler] onStructuresReloaded called but JEI not ready. registered={}, jeiRuntime={}", 
+            MachineryAssembler.LOGGER.warn("onStructuresReloaded called but JEI not ready. registered={}, jeiRuntime={}", 
                 registered, jeiRuntime != null);
             return;
         }
 
-        MachineryAssembler.LOGGER.info("[Machinery Assembler] onStructuresReloaded called. registered={}, wrappers={}", 
+        MachineryAssembler.LOGGER.info("onStructuresReloaded called. registered={}, wrappers={}", 
             registered, STRUCTURE_WRAPPERS.size());
 
         int updated = 0;
@@ -68,11 +69,11 @@ public class MAJEIPlugin implements IModPlugin {
         }
 
         if (newStructures > 0) {
-            MachineryAssembler.LOGGER.warn("[Machinery Assembler] {} new structure(s) detected. " +
+            MachineryAssembler.LOGGER.warn("{} new structure(s) detected. " +
                 "A game restart is required for them to appear in JEI.", newStructures);
         }
 
-        MachineryAssembler.LOGGER.info("[Machinery Assembler] Reload complete. Updated {}/{} wrappers.", 
+        MachineryAssembler.LOGGER.info("Reload complete. Updated {}/{} wrappers.", 
             updated, STRUCTURE_WRAPPERS.size());
     }
 
@@ -98,7 +99,7 @@ public class MAJEIPlugin implements IModPlugin {
 
         registry.addRecipes(STRUCTURE_WRAPPERS, CATEGORY_STRUCTURE_PREVIEW);
         registered = true;
-        MachineryAssembler.LOGGER.info("[Machinery Assembler] Registered {} structure wrappers with JEI", STRUCTURE_WRAPPERS.size());
+        MachineryAssembler.LOGGER.info("Registered {} structure wrappers with JEI", STRUCTURE_WRAPPERS.size());
     }
 
     @Override

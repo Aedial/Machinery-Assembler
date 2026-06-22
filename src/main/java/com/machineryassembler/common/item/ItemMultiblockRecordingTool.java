@@ -18,7 +18,7 @@ import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import com.machineryassembler.MachineryAssembler;
+import com.machineryassembler.Tags;
 import com.machineryassembler.client.recording.MultiblockRecordingClientController;
 
 
@@ -30,8 +30,8 @@ public class ItemMultiblockRecordingTool extends Item {
     public static final String ITEM_NAME = "multiblock_recording_tool";
 
     public ItemMultiblockRecordingTool() {
-        setRegistryName(MachineryAssembler.MODID, ITEM_NAME);
-        setTranslationKey(MachineryAssembler.MODID + "." + ITEM_NAME);
+        setRegistryName(Tags.MODID, ITEM_NAME);
+        setTranslationKey(Tags.MODID + "." + ITEM_NAME);
         setMaxStackSize(1);
         setCreativeTab(CreativeTabs.TOOLS);
     }

@@ -14,7 +14,7 @@ import net.minecraftforge.fml.client.config.IConfigElement;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import com.machineryassembler.MachineryAssembler;
+import com.machineryassembler.Tags;
 import com.machineryassembler.common.config.AutobuildConfig;
 
 
@@ -29,10 +29,10 @@ public class ConfigGui extends GuiConfig {
         super(
             parentScreen,
             getConfigElements(),
-            MachineryAssembler.MODID,
+            Tags.MODID,
             false,
             false,
-            MachineryAssembler.NAME
+            Tags.MODNAME
         );
     }
 

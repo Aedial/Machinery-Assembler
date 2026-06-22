@@ -8,7 +8,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 import javax.annotation.Nullable;
@@ -146,6 +145,21 @@ public class MultiblockRecordingSnapshot {
 
             for (TileTagSummary tagSummary : tileSummary.getVisibleTags()) {
                 if (tagSummary.isMandatory()) continue;
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    public int getEnabledTileTagCount(MultiblockRecordingExclusions exclusions) {
+        int count = 0;
+        for (TileSummary tileSummary : getTileSummaries()) {
+            if (exclusions.isBlockExcluded(tileSummary.getBlockKey())) continue;
+
+            for (TileTagSummary tagSummary : tileSummary.getVisibleTags()) {
+                if (tagSummary.isMandatory()) continue;
+                if (exclusions.isTileTagExcluded(tagSummary.getTileKey(), tagSummary.getKey())) continue;
                 count++;
             }
         }

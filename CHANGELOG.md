@@ -11,10 +11,12 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 ## [0.4.0] - 2026-09-01
 ### Added
 - Add the Multiblock Recording Tool, including exclusion-aware preview, per-tile top-level tag toggles, and saving/reloading from the Minecraft-root `multiblocks/` folder.
+- Add an opt-in verbose autobuild log toggle for large-footprint planning, extraction source usage, and placement startup. It comes with in-depth logging of what exactly failed and why during planning and placement. Although it is mainly intended for debugging purposes, it can also be useful for users to understand why certain blocks are not being matched or placed during autobuilding and report potential issues with specific blocks or patterns.
 
 ### Fixed
 - Fix crash in some in-world previews.
 - Fix autobuild planning for blocks that reject FakePlayer probes by retrying placement simulation with the real player state before reporting a failed build.
+- Fix autobuild placement of blocks bigger than 1x1x1 in size by strictly matching their real footprint to the pattern before placement.
 - Fix creative autobuilds with block consumption disabled. Placement inventory is now synthesized correctly instead of returning empty (which would fail during placement).
 - Reduce autobuild probe overhead by reusing the fake-player probe state and the per-block item template instead of rebuilding both for every candidate attempt.
 

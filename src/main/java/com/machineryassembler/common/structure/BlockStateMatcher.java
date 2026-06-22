@@ -9,15 +9,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.objects.ReferenceArrayList;
 
 import net.minecraft.block.Block;
-import net.minecraft.block.BlockLiquid;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.util.Rotation;
-import net.minecraftforge.fluids.BlockFluidBase;
 
 
 /**
@@ -33,11 +29,11 @@ public class BlockStateMatcher {
     }
 
     /**
-     * Create a matcher for a block using only its default state (metadata 0).
+     * Create a matcher for a block using only its default state.
      * We intentionally do NOT iterate over all metadata values because:
      * 1. Many blocks share the same ID with different metadata (e.g., wood types)
      * 2. This causes incorrect items to show in the ingredients list
-     * 3. For structure matching, the parser specifies the exact state needed
+     * 3. For structure matching, callers should pass an explicit state when metadata matters
      */
     public BlockStateMatcher(Block block) {
         // Always use only the default state - no metadata iteration

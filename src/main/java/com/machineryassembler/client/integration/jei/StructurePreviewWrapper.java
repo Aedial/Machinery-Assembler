@@ -38,6 +38,7 @@ import mezz.jei.api.recipe.IFocus;
 import mezz.jei.api.recipe.IRecipeWrapper;
 
 import com.machineryassembler.MachineryAssembler;
+import com.machineryassembler.Tags;
 import com.machineryassembler.client.ClientProxy;
 import com.machineryassembler.client.render.StructureRenderContext;
 import com.machineryassembler.client.render.StructureRenderHelper;
@@ -55,17 +56,17 @@ import com.machineryassembler.common.structure.StructurePattern;
 public class StructurePreviewWrapper implements IRecipeWrapper {
 
     // Arrow textures for pagination
-    private static final ResourceLocation ARROW_UP = new ResourceLocation(MachineryAssembler.MODID, "textures/gui/arrow_up.png");
-    private static final ResourceLocation ARROW_UP_HOVERED = new ResourceLocation(MachineryAssembler.MODID, "textures/gui/arrow_up_hovered.png");
-    private static final ResourceLocation ARROW_UP_DISABLED = new ResourceLocation(MachineryAssembler.MODID, "textures/gui/arrow_up_disabled.png");
-    private static final ResourceLocation ARROW_DOWN = new ResourceLocation(MachineryAssembler.MODID, "textures/gui/arrow_down.png");
-    private static final ResourceLocation ARROW_DOWN_HOVERED = new ResourceLocation(MachineryAssembler.MODID, "textures/gui/arrow_down_hovered.png");
-    private static final ResourceLocation ARROW_DOWN_DISABLED = new ResourceLocation(MachineryAssembler.MODID, "textures/gui/arrow_down_disabled.png");
+    private static final ResourceLocation ARROW_UP = new ResourceLocation(Tags.MODID, "textures/gui/arrow_up.png");
+    private static final ResourceLocation ARROW_UP_HOVERED = new ResourceLocation(Tags.MODID, "textures/gui/arrow_up_hovered.png");
+    private static final ResourceLocation ARROW_UP_DISABLED = new ResourceLocation(Tags.MODID, "textures/gui/arrow_up_disabled.png");
+    private static final ResourceLocation ARROW_DOWN = new ResourceLocation(Tags.MODID, "textures/gui/arrow_down.png");
+    private static final ResourceLocation ARROW_DOWN_HOVERED = new ResourceLocation(Tags.MODID, "textures/gui/arrow_down_hovered.png");
+    private static final ResourceLocation ARROW_DOWN_DISABLED = new ResourceLocation(Tags.MODID, "textures/gui/arrow_down_disabled.png");
 
     // Message level icon textures
-    private static final ResourceLocation ICON_INFO = new ResourceLocation(MachineryAssembler.MODID, "textures/gui/icon_info.png");
-    private static final ResourceLocation ICON_WARNING = new ResourceLocation(MachineryAssembler.MODID, "textures/gui/icon_warning.png");
-    private static final ResourceLocation ICON_ERROR = new ResourceLocation(MachineryAssembler.MODID, "textures/gui/icon_error.png");
+    private static final ResourceLocation ICON_INFO = new ResourceLocation(Tags.MODID, "textures/gui/icon_info.png");
+    private static final ResourceLocation ICON_WARNING = new ResourceLocation(Tags.MODID, "textures/gui/icon_warning.png");
+    private static final ResourceLocation ICON_ERROR = new ResourceLocation(Tags.MODID, "textures/gui/icon_error.png");
 
     // Message panel dimensions
     private static final int MESSAGE_PANEL_MAX_WIDTH = 240;  // Maximum width when plenty of space available

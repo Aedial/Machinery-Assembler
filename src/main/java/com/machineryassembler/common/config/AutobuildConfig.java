@@ -12,7 +12,7 @@ import net.minecraftforge.fml.client.event.ConfigChangedEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
-import com.machineryassembler.MachineryAssembler;
+import com.machineryassembler.Tags;
 
 
 /**
@@ -22,13 +22,7 @@ import com.machineryassembler.MachineryAssembler;
 public class AutobuildConfig {
 
     public static final String CATEGORY = "autobuild";
-
-    // Config keys for localization
-    public static final String KEY_CONSUME_CREATIVE = "config.machineryassembler.consumeBlocksInCreative";
-    public static final String KEY_ALLOW_PARTIAL = "config.machineryassembler.allowPartialBuilds";
-    public static final String KEY_BLOCKS_PER_TICK = "config.machineryassembler.blocksPerTick";
-    public static final String KEY_MAX_DISTANCE = "config.machineryassembler.maxBuildDistance";
-    public static final String KEY_DETAILED_REPORT = "config.machineryassembler.detailedMissingReport";
+    public static final String LANG_PREFIX = "config.machineryassembler.";
 
     private static Configuration config;
 
@@ -37,6 +31,7 @@ public class AutobuildConfig {
     public static double blocksPerTick = 0.5;
     public static int maxBuildDistance = 0;
     public static boolean detailedMissingReport = true;
+    public static boolean verboseAutobuildLogging = false;
 
     public static void init(File configFile) {
         if (config == null) {
@@ -53,33 +48,38 @@ public class AutobuildConfig {
         Property prop;
 
         prop = config.get(CATEGORY, "consumeBlocksInCreative", false);
-        prop.setLanguageKey(KEY_CONSUME_CREATIVE);
+        prop.setLanguageKey(LANG_PREFIX + "consumeBlocksInCreative");
         prop.setComment("Whether creative mode players should have blocks consumed during autobuild.");
         consumeBlocksInCreative = prop.getBoolean();
 
         prop = config.get(CATEGORY, "allowPartialBuilds", true);
-        prop.setLanguageKey(KEY_ALLOW_PARTIAL);
+        prop.setLanguageKey(LANG_PREFIX + "allowPartialBuilds");
         prop.setComment("Whether to allow partial builds when not all blocks are available. If false, autobuild will be aborted when blocks are missing.");
         allowPartialBuilds = prop.getBoolean();
 
         prop = config.get(CATEGORY, "blocksPerTick", 0.5);
-        prop.setLanguageKey(KEY_BLOCKS_PER_TICK);
+        prop.setLanguageKey(LANG_PREFIX + "blocksPerTick");
         prop.setComment("Number of blocks to place per tick during autobuild. Fractional values are allowed (e.g. 0.5 = one block every 2 ticks). Higher values build faster but may cause lag.");
         prop.setMinValue(0.05);
         prop.setMaxValue(64.0);
         blocksPerTick = prop.getDouble();
 
         prop = config.get(CATEGORY, "maxBuildDistance", 0);
-        prop.setLanguageKey(KEY_MAX_DISTANCE);
+        prop.setLanguageKey(LANG_PREFIX + "maxBuildDistance");
         prop.setComment("Maximum distance from player for autobuild. Set to 0 for unlimited.");
         prop.setMinValue(0);
         prop.setMaxValue(1024);
         maxBuildDistance = prop.getInt();
 
         prop = config.get(CATEGORY, "detailedMissingReport", true);
-        prop.setLanguageKey(KEY_DETAILED_REPORT);
+        prop.setLanguageKey(LANG_PREFIX + "detailedMissingReport");
         prop.setComment("Whether to report each missing block type in chat. If false, only shows total count.");
         detailedMissingReport = prop.getBoolean();
+
+        prop = config.get(CATEGORY, "verboseAutobuildLogging", false);
+        prop.setLanguageKey(LANG_PREFIX + "verboseAutobuildLogging");
+        prop.setComment("Whether to log detailed autobuild planning, extraction, and placement startup information to the server log.");
+        verboseAutobuildLogging = prop.getBoolean();
 
         if (config.hasChanged()) config.save();
     }
@@ -93,11 +93,11 @@ public class AutobuildConfig {
         return true;
     }
 
-    @Mod.EventBusSubscriber(modid = MachineryAssembler.MODID)
+    @Mod.EventBusSubscriber(modid = Tags.MODID)
     public static class ConfigSyncHandler {
         @SubscribeEvent
         public static void onConfigChanged(ConfigChangedEvent.OnConfigChangedEvent event) {
-            if (event.getModID().equals(MachineryAssembler.MODID)) load();
+            if (event.getModID().equals(Tags.MODID)) load();
         }
     }
 }

@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.List;
 
 import com.machineryassembler.MachineryAssembler;
+import com.machineryassembler.Tags;
 
 
 public class DataHolder {
@@ -20,10 +21,10 @@ public class DataHolder {
         altStructuresDirectory = new File(minecraftDirectory == null ? configDir : minecraftDirectory, "multiblocks");
         if (!altStructuresDirectory.exists()) {
             altStructuresDirectory.mkdirs();
-            MachineryAssembler.LOGGER.info("[Machinery Assembler] Created structures directory at {}", altStructuresDirectory.getAbsolutePath());
+            MachineryAssembler.LOGGER.info("Created structures directory at {}", altStructuresDirectory.getAbsolutePath());
         }
 
-        structuresDirectory = new File(new File(configDir, MachineryAssembler.MODID), "structures");
+        structuresDirectory = new File(new File(configDir, Tags.MODID), "structures");
 
         structuresDirectories.clear();
         structuresDirectories.add(altStructuresDirectory);

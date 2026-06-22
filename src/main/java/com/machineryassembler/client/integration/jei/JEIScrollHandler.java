@@ -167,6 +167,7 @@ public class JEIScrollHandler {
      * Render deferred message item tooltips after JEI has finished rendering.
      * This ensures tooltips appear above JEI's slot rendering.
      */
+    @SuppressWarnings("deprecation")
     @SubscribeEvent(priority = EventPriority.LOW)
     public void onDrawScreenPost(GuiScreenEvent.DrawScreenEvent.Post event) {
         if (!(event.getGui() instanceof RecipesGui)) return;
