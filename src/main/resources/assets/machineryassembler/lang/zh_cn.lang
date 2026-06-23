@@ -65,11 +65,11 @@ item.machineryassembler.assembler_wrench.provider_line=%s：%s
 
 # Multiblock Recording Tool
 item.machineryassembler.multiblock_recording_tool.name=多方块记录工具
-item.machineryassembler.multiblock_recording_tool.tooltip.1=§b首次右键点击§r以将第一个顶点设置在玩家脚下。
-item.machineryassembler.multiblock_recording_tool.tooltip.2=§b再次右键点击§r以设置第二个顶点。
-item.machineryassembler.multiblock_recording_tool.tooltip.3=§b第三次右键点击§r以扫描选区并打开录制器。
+item.machineryassembler.multiblock_recording_tool.tooltip.1=§b首次右键点击§7以将第一个顶点设置在玩家脚下。
+item.machineryassembler.multiblock_recording_tool.tooltip.2=§b再次右键点击§7以设置第二个顶点。
+item.machineryassembler.multiblock_recording_tool.tooltip.3=§b第三次右键点击§7以扫描选区并打开录制器。
 item.machineryassembler.multiblock_recording_tool.tooltip.4=预览和保存的输出都使用相同的过滤方块标签。
-item.machineryassembler.multiblock_recording_tool.tooltip.5=§bShift+右键点击§r以清除顶点、排除项和缓存的快照。
+item.machineryassembler.multiblock_recording_tool.tooltip.5=§bShift+右键点击§7以清除顶点、排除项和缓存的快照。
 
 # Wrench GUI
 gui.machineryassembler.wrench.no_selection=从列表中选择一个结构
@@ -89,15 +89,16 @@ gui.machineryassembler.recorder.preview.unavailable=无可用预览
 gui.machineryassembler.recorder.save=保存JSON
 gui.machineryassembler.recorder.cancel=取消
 gui.machineryassembler.recorder.output_folder=将保存至目录minecraft/multiblocks/，并重新加载以供扳手使用。
-gui.machineryassembler.recorder.hint=按Esc可关闭界面。再次打开时会重新扫描，同时保留相同的排除项。
+gui.machineryassembler.recorder.hint=按Esc可关闭界面，再次打开时会重新扫描，同时保留当前的排除项。
+gui.machineryassembler.recorder.hint2=默认情况下，方块实体标签处于禁用状态。请仅启用少数几个匹配所需的。
 gui.machineryassembler.recorder.blocks_button=方块（%d）
-gui.machineryassembler.recorder.tiles_button=方块实体标签（%d）
+gui.machineryassembler.recorder.tiles_button=方块实体标签（%d个已启用）
 gui.machineryassembler.recorder.blocks.short=方块
 gui.machineryassembler.recorder.tiles.short=方块实体标签
 gui.machineryassembler.recorder.block_types=%d方块类型
 gui.machineryassembler.recorder.total_blocks=%d方块
 gui.machineryassembler.recorder.tile_groups=%d方块实体
-gui.machineryassembler.recorder.tile_tags=%d可选标签
+gui.machineryassembler.recorder.tile_tags=%d可选标签（默认禁用）
 gui.machineryassembler.recorder.excluded_tooltip=从已保存的结构中排除
 gui.machineryassembler.recorder.blocks.title=已捕获的方块
 gui.machineryassembler.recorder.blocks.footer=%d种方块类型，已排除%d
@@ -105,10 +106,10 @@ gui.machineryassembler.recorder.blocks.empty=捕获中未找到方块。
 gui.machineryassembler.recorder.blocks.count=数量：%d
 gui.machineryassembler.recorder.blocks.count_tooltip=选区中方块总数：%d
 gui.machineryassembler.recorder.tiles.title=已捕获的方块实体标签
-gui.machineryassembler.recorder.tiles.footer=%d组方块实体，%d个可见标签，已排除%d
+gui.machineryassembler.recorder.tiles.footer=%d组方块实体，%d/%d个已启用的标签
 gui.machineryassembler.recorder.tiles.empty=在当前方块排除项下，不会保留任何可选的方块实体标签。
-gui.machineryassembler.recorder.tiles.tag_tooltip.included=点击以从预览和匹配中排除此标签。
-gui.machineryassembler.recorder.tiles.tag_tooltip.excluded=点击以在预览和匹配中重新包含此标签。
+gui.machineryassembler.recorder.tiles.tag_tooltip.included=已启用，用于预览和匹配。点击可再次禁用。
+gui.machineryassembler.recorder.tiles.tag_tooltip.excluded=默认禁用。点击可启用，用于预览和匹配。
 
 # Wrench Messages
 message.machineryassembler.wrench.selected=结构已选择。右击进行建造。
@@ -146,3 +147,5 @@ config.machineryassembler.maxBuildDistance=最大建造距离
 config.machineryassembler.maxBuildDistance.tooltip=自动建造距离玩家的最大距离。设置为0表示无限制。
 config.machineryassembler.detailedMissingReport=详细缺失方块报告
 config.machineryassembler.detailedMissingReport.tooltip=是否在聊天栏中报告每种缺失的方块类型。如果为false，则仅显示总计数量。
+config.machineryassembler.verboseAutobuildLogging=详细自动建造日志
+config.machineryassembler.verboseAutobuildLogging.tooltip=是否将自动建造的详细规划、提取和放置启动信息记录到服务器日志中。
