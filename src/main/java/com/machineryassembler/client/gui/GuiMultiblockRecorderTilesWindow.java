@@ -89,8 +89,8 @@ public class GuiMultiblockRecorderTilesWindow {
         }
 
         if (hoveredTag != null) {
-            boolean excluded = exclusions.isTileTagExcluded(hoveredTag.getTileKey(), hoveredTag.getKey());
-            exclusions.setTileTagExcluded(hoveredTag.getTileKey(), hoveredTag.getKey(), !excluded);
+            boolean included = exclusions.isTileTagIncluded(hoveredTag.getTileKey(), hoveredTag.getKey());
+            exclusions.setTileTagIncluded(hoveredTag.getTileKey(), hoveredTag.getKey(), !included);
             return true;
         }
 
@@ -147,8 +147,8 @@ public class GuiMultiblockRecorderTilesWindow {
         String footer = I18n.format(
             "gui.machineryassembler.recorder.tiles.footer",
             tiles.size(),
-            snapshot.getVisibleTileTagCount(exclusions),
-            getExcludedVisibleTagCount(tiles)
+            snapshot.getEnabledTileTagCount(exclusions),
+            snapshot.getVisibleTileTagCount(exclusions)
         );
         font.drawString(footer, windowX + 6, windowY + windowH - FOOTER_HEIGHT + 2, 0xCCCCCC);
     }
@@ -279,12 +279,13 @@ public class GuiMultiblockRecorderTilesWindow {
         for (TileTagSummary tag : tile.getVisibleTags()) {
             if (rowY + ROW_HEIGHT > clipTop && rowY < clipBottom) {
                 boolean excluded = exclusions.isTileTagExcluded(tag.getTileKey(), tag.getKey());
-                int keyColor = excluded ? 0xFFCC7777 : 0xFFE1C89C;
+                int keyColor = excluded ? 0xFF989898 : 0xFFE1C89C;
+                int contentColor = excluded ? 0xFF777777 : 0xFFB8B8B8;
                 String keyText = font.trimStringToWidth(tag.getKey(), KEY_COLUMN_WIDTH - 4);
                 font.drawString(keyText, rowsX, rowY, keyColor);
 
                 String contentText = shortenMiddleToWidth(font, tag.getContent(), contentW);
-                font.drawString(contentText, contentX, rowY, 0xFFB8B8B8);
+                font.drawString(contentText, contentX, rowY, contentColor);
 
                 if (mouseX >= rowsX && mouseX <= rowsX + KEY_COLUMN_WIDTH
                         && mouseY >= Math.max(rowY, clipTop) && mouseY < Math.min(rowY + ROW_HEIGHT, clipBottom)) {
@@ -317,17 +318,6 @@ public class GuiMultiblockRecorderTilesWindow {
     private int getTileCardHeight(TileSummary tile) {
         int rowsHeight = Math.max(ICON_SIZE, tile.getVisibleTags().size() * ROW_HEIGHT);
         return rowsHeight + PADDING * 2;
-    }
-
-    private int getExcludedVisibleTagCount(List<TileSummary> tiles) {
-        int count = 0;
-        for (TileSummary tile : tiles) {
-            for (TileTagSummary tag : tile.getVisibleTags()) {
-                if (exclusions.isTileTagExcluded(tag.getTileKey(), tag.getKey())) count++;
-            }
-        }
-
-        return count;
     }
 
     private boolean isMouseOver(int mouseX, int mouseY) {

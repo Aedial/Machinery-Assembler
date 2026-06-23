@@ -223,7 +223,7 @@ public class GuiMultiblockRecorder extends GuiScreen {
 
     private void updateButtonState() {
         int excludedBlocks = getExcludedBlockCount();
-        int excludedTileTags = getExcludedTileTagCount();
+        int enabledTileTags = getEnabledTileTagCount();
         boolean hasContent = hasExportContent();
 
         for (GuiButton button : buttonList) {
@@ -233,7 +233,7 @@ public class GuiMultiblockRecorder extends GuiScreen {
             }
 
             if (button.id == BUTTON_TILES) {
-                button.displayString = I18n.format("gui.machineryassembler.recorder.tiles_button", excludedTileTags);
+                button.displayString = I18n.format("gui.machineryassembler.recorder.tiles_button", enabledTileTags);
                 continue;
             }
 
@@ -245,7 +245,7 @@ public class GuiMultiblockRecorder extends GuiScreen {
 
     private void calculateLayout() {
         panelWidth = Math.min(382, width - 28);
-        panelHeight = Math.min(238, height - 24);
+        panelHeight = Math.min(238, height - FOOTER_LINE_SPACING * 3 - 2);
         panelX = (width - panelWidth) / 2;
         panelY = (height - panelHeight) / 2;
     }
@@ -303,6 +303,7 @@ public class GuiMultiblockRecorder extends GuiScreen {
         int footerY = getFooterY();
         drawFooterLine(footerY, "gui.machineryassembler.recorder.output_folder", 0xFFD6BC93);
         drawFooterLine(footerY + FOOTER_LINE_SPACING, "gui.machineryassembler.recorder.hint", 0xFFAAA39A);
+        drawFooterLine(footerY + FOOTER_LINE_SPACING * 2, "gui.machineryassembler.recorder.hint2", 0xFFAAA39A);
     }
 
     private void drawFooterLine(int y, String translationKey, int color) {
@@ -358,17 +359,8 @@ public class GuiMultiblockRecorder extends GuiScreen {
         return count;
     }
 
-    private int getExcludedTileTagCount() {
-        int count = 0;
-        for (MultiblockRecordingSnapshot.TileSummary tileSummary : snapshot.getTileSummaries()) {
-            if (exclusions.isBlockExcluded(tileSummary.getBlockKey())) continue;
-
-            for (MultiblockRecordingSnapshot.TileTagSummary tagSummary : tileSummary.getVisibleTags()) {
-                if (exclusions.isTileTagExcluded(tagSummary.getTileKey(), tagSummary.getKey())) count++;
-            }
-        }
-
-        return count;
+    private int getEnabledTileTagCount() {
+        return snapshot.getEnabledTileTagCount(exclusions);
     }
 
     private boolean hasExportContent() {
@@ -398,7 +390,7 @@ public class GuiMultiblockRecorder extends GuiScreen {
     }
 
     private int getFooterY() {
-        return getActionY() - 24;
+        return getActionY() - FOOTER_LINE_SPACING - 2;
     }
 
     private int getActionY() {

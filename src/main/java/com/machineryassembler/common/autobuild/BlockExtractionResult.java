@@ -3,6 +3,7 @@
 
 package com.machineryassembler.common.autobuild;
 
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -17,6 +18,7 @@ public class BlockExtractionResult {
 
     private final Map<String, Integer> remainder = new LinkedHashMap<>();
     private final Map<String, Integer> extracted = new LinkedHashMap<>();
+    private final Map<String, Map<BlockSourceProviderId, Integer>> extractedBySource = new LinkedHashMap<>();
 
     public BlockExtractionResult() {
     }
@@ -38,6 +40,10 @@ public class BlockExtractionResult {
         return extracted;
     }
 
+    public Map<String, Map<BlockSourceProviderId, Integer>> getExtractedBySource() {
+        return extractedBySource;
+    }
+
     public void addRemainder(String key, int count) {
         if (count <= 0) return;
 
@@ -54,5 +60,14 @@ public class BlockExtractionResult {
         if (count <= 0) return;
 
         extracted.merge(key, count, Integer::sum);
+    }
+
+    public void addSourceContribution(String key, BlockSourceProviderId providerId, int count) {
+        if (count <= 0) return;
+
+        Map<BlockSourceProviderId, Integer> sourceCounts = extractedBySource.computeIfAbsent(
+            key,
+            ignored -> new EnumMap<>(BlockSourceProviderId.class));
+        sourceCounts.merge(providerId, count, Integer::sum);
     }
 }

@@ -41,7 +41,6 @@ Use the Assembler's Wrench:
 - Select a multiblock structure from the list. A ghost preview of the structure will be shown in-world.
 - Right-click to assemble the structure around that block (only if it has been selected in the GUI). An in-world preview of the structure will be shown before assembly. If the structure contains multiple instances of the selected block, the behavior is undefined, and it is recommended to use arrow keys to move the preview to the desired position before assembling. It is generally recommended to use blocks that occur only once in the structure, for anchoring.
 
-
 ## Building
 Run:
 ```
@@ -50,3 +49,7 @@ Run:
 
 ## License
 This project is licensed under the GPL License - see the LICENSE file for details.
+
+## Credits
+- Chinese translation: @ZHAY10086
+- Multiblock Recording Tool's, Assembler's Wrench's texture: @NerdySpider

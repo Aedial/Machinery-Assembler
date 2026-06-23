@@ -23,7 +23,7 @@ class BlockSourceManagerTest {
     void batchExtractDetailedPreservesOrderedRequirementsAndExactExtractedKeys() {
         RecordingBlockSource recordingSource = new RecordingBlockSource();
         recordingSource.result.addRemainder("generic", 1);
-        recordingSource.result.addExtractedKey("specific|{owner:\"Alice\"}", 1);
+        recordingSource.result.addExtractedKey("specific|{owner:\"Aedial\"}", 1);
         recordingSource.result.addExtractedKey("generic|{energy:4000}", 2);
 
         Map<BlockSourceProviderId, BlockSource> sources = new EnumMap<>(BlockSourceProviderId.class);
@@ -47,6 +47,10 @@ class BlockSourceManagerTest {
         Assertions.assertEquals(Arrays.asList("specific", "generic"), recordingSource.recordedKeys);
         Assertions.assertEquals(recordingSource.result.getRemainder(), result.getRemainder());
         Assertions.assertEquals(recordingSource.result.getExtracted(), result.getExtracted());
+        Assertions.assertEquals(1,
+            result.getExtractedBySource().get("specific|{owner:\"Aedial\"}").get(BlockSourceProviderId.INVENTORY));
+        Assertions.assertEquals(2,
+            result.getExtractedBySource().get("generic|{energy:4000}").get(BlockSourceProviderId.INVENTORY));
     }
 
     private static class RecordingBlockSource implements BlockSource {

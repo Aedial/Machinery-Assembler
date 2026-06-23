@@ -38,4 +38,16 @@ class BlockExtractionResultTest {
         Assertions.assertFalse(result.getRemainder().containsKey("ignore-zero"));
         Assertions.assertFalse(result.getRemainder().containsKey("ignore-negative"));
     }
+
+    @Test
+    void addSourceContributionMergesCountsPerProvider() {
+        BlockExtractionResult result = new BlockExtractionResult();
+
+        result.addSourceContribution("specific", BlockSourceProviderId.INVENTORY, 1);
+        result.addSourceContribution("specific", BlockSourceProviderId.INVENTORY, 2);
+        result.addSourceContribution("specific", BlockSourceProviderId.AE2, 4);
+
+        Assertions.assertEquals(3, result.getExtractedBySource().get("specific").get(BlockSourceProviderId.INVENTORY));
+        Assertions.assertEquals(4, result.getExtractedBySource().get("specific").get(BlockSourceProviderId.AE2));
+    }
 }

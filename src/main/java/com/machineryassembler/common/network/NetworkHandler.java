@@ -8,6 +8,7 @@ import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
 import net.minecraftforge.fml.relauncher.Side;
 
 import com.machineryassembler.MachineryAssembler;
+import com.machineryassembler.Tags;
 
 
 /**
@@ -15,7 +16,7 @@ import com.machineryassembler.MachineryAssembler;
  */
 public class NetworkHandler {
 
-    public static final SimpleNetworkWrapper INSTANCE = NetworkRegistry.INSTANCE.newSimpleChannel(MachineryAssembler.MODID);
+    public static final SimpleNetworkWrapper INSTANCE = NetworkRegistry.INSTANCE.newSimpleChannel(Tags.MODID);
 
     private static int packetId = 0;
 
@@ -92,6 +93,6 @@ public class NetworkHandler {
             Side.CLIENT
         );
 
-        MachineryAssembler.LOGGER.info("[Machinery Assembler] Registered {} network packets", packetId);
+        MachineryAssembler.LOGGER.info("Registered {} network packets", packetId);
     }
 }

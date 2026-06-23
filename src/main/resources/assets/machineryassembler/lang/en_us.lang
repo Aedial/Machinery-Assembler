@@ -65,11 +65,11 @@ item.machineryassembler.assembler_wrench.provider_line=%s: %s
 
 # Multiblock Recording Tool
 item.machineryassembler.multiblock_recording_tool.name=Multiblock Recording Tool
-item.machineryassembler.multiblock_recording_tool.tooltip.1=§bRight-click§r once to set the first corner at your feet.
-item.machineryassembler.multiblock_recording_tool.tooltip.2=§bRight-click again§r to set the second corner.
-item.machineryassembler.multiblock_recording_tool.tooltip.3=§bRight-click a third time§r to scan the area and open the recorder.
+item.machineryassembler.multiblock_recording_tool.tooltip.1=§bRight-click§7 once to set the first corner at your feet.
+item.machineryassembler.multiblock_recording_tool.tooltip.2=§bRight-click again§7 to set the second corner.
+item.machineryassembler.multiblock_recording_tool.tooltip.3=§bRight-click a third time§7 to scan the area and open the recorder.
 item.machineryassembler.multiblock_recording_tool.tooltip.4=Preview and saved output both use the same filtered tile tags.
-item.machineryassembler.multiblock_recording_tool.tooltip.5=§bShift + right-click§r clears the corners, exclusions, and cached snapshot.
+item.machineryassembler.multiblock_recording_tool.tooltip.5=§bShift + right-click§7 clears the corners, exclusions, and cached snapshot.
 
 # Wrench GUI
 gui.machineryassembler.wrench.no_selection=Select a structure from the list
@@ -89,15 +89,16 @@ gui.machineryassembler.recorder.preview.unavailable=Preview unavailable
 gui.machineryassembler.recorder.save=Save JSON
 gui.machineryassembler.recorder.cancel=Cancel
 gui.machineryassembler.recorder.output_folder=Will save to minecraft/multiblocks/ and reload it for the wrench.
-gui.machineryassembler.recorder.hint=Esc closes the screen. Reopen it to rescan while keeping the current exclusions.
+gui.machineryassembler.recorder.hint=Esc closes the screen, reopen it to rescan while keeping current exclusions.
+gui.machineryassembler.recorder.hint2=Tile tags are disabled by default. Enable only the few you need for matching.
 gui.machineryassembler.recorder.blocks_button=Blocks (%d)
-gui.machineryassembler.recorder.tiles_button=Tile Tags (%d)
+gui.machineryassembler.recorder.tiles_button=Tile Tags (%d enabled)
 gui.machineryassembler.recorder.blocks.short=Blocks
 gui.machineryassembler.recorder.tiles.short=Tile Tags
 gui.machineryassembler.recorder.block_types=%d block types
 gui.machineryassembler.recorder.total_blocks=%d blocks
 gui.machineryassembler.recorder.tile_groups=%d tiles
-gui.machineryassembler.recorder.tile_tags=%d optional tags
+gui.machineryassembler.recorder.tile_tags=%d optional tags (disabled by default)
 gui.machineryassembler.recorder.excluded_tooltip=Excluded from the saved structure
 gui.machineryassembler.recorder.blocks.title=Captured Blocks
 gui.machineryassembler.recorder.blocks.footer=%d block types, %d excluded
@@ -105,10 +106,10 @@ gui.machineryassembler.recorder.blocks.empty=No blocks found in the capture.
 gui.machineryassembler.recorder.blocks.count=Count: %d
 gui.machineryassembler.recorder.blocks.count_tooltip=Total blocks in selection: %d
 gui.machineryassembler.recorder.tiles.title=Captured Tile Tags
-gui.machineryassembler.recorder.tiles.footer=%d tiles, %d visible tags, %d excluded
+gui.machineryassembler.recorder.tiles.footer=%d tiles, %d/%d enabled tags
 gui.machineryassembler.recorder.tiles.empty=No optional tile tags remain after the current block exclusions.
-gui.machineryassembler.recorder.tiles.tag_tooltip.included=Click to exclude this tag from preview and matching.
-gui.machineryassembler.recorder.tiles.tag_tooltip.excluded=Click to include this tag in preview and matching again.
+gui.machineryassembler.recorder.tiles.tag_tooltip.included=Enabled for preview and matching. Click to disable it again.
+gui.machineryassembler.recorder.tiles.tag_tooltip.excluded=Disabled by default. Click to enable it for preview and matching.
 
 # Wrench Messages
 message.machineryassembler.wrench.selected=Structure selected. Right-click to build.
@@ -146,3 +147,5 @@ config.machineryassembler.maxBuildDistance=Max Build Distance
 config.machineryassembler.maxBuildDistance.tooltip=Maximum distance from player for autobuild. Set to 0 for unlimited.
 config.machineryassembler.detailedMissingReport=Detailed Missing Block Report
 config.machineryassembler.detailedMissingReport.tooltip=Whether to report each missing block type in chat. If false, only shows total count.
+config.machineryassembler.verboseAutobuildLogging=Verbose Autobuild Logging
+config.machineryassembler.verboseAutobuildLogging.tooltip=Whether to log detailed autobuild planning, extraction, and placement startup information to the server log.

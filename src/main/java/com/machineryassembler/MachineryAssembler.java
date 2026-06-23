@@ -25,22 +25,19 @@ import com.machineryassembler.common.CommonProxy;
  * Provides structure preview and building assistance without controller dependency.
  */
 @Mod(
-    modid = MachineryAssembler.MODID,
-    name = MachineryAssembler.NAME,
-    version = MachineryAssembler.VERSION,
+    modid = Tags.MODID,
+    name = Tags.MODNAME,
+    version = Tags.VERSION,
     dependencies = "after:jei@[4.13.1.222,);",
     acceptedMinecraftVersions = "[1.12.2]",
     guiFactory = "com.machineryassembler.client.config.ConfigGuiFactory"
 )
 public class MachineryAssembler {
 
-    public static final String MODID = "machineryassembler";
-    public static final String NAME = "Machinery Assembler";
-    public static final String VERSION = "0.2.2";
     public static final String CLIENT_PROXY = "com.machineryassembler.client.ClientProxy";
     public static final String COMMON_PROXY = "com.machineryassembler.common.CommonProxy";
 
-    @Mod.Instance(MODID)
+    @Mod.Instance(Tags.MODID)
     public static MachineryAssembler instance;
 
     public static Logger LOGGER;

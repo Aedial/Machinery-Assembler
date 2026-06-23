@@ -8,6 +8,7 @@ import net.minecraftforge.common.ForgeChunkManager;
 import net.minecraftforge.common.MinecraftForge;
 
 import com.machineryassembler.MachineryAssembler;
+import com.machineryassembler.Tags;
 import com.machineryassembler.common.command.CommandReloadStructures;
 import com.machineryassembler.common.config.AutobuildConfig;
 import com.machineryassembler.common.data.DataHolder;
@@ -24,7 +25,7 @@ public class CommonProxy {
         dataHolder.setup(configDir);
 
         // Initialize config
-        File configFile = new File(configDir, MachineryAssembler.MODID + "/autobuild.cfg");
+        File configFile = new File(configDir, Tags.MODID + "/autobuild.cfg");
         AutobuildConfig.init(configFile);
     }
 
@@ -44,7 +45,7 @@ public class CommonProxy {
 
     public void postInit() {
         StructureRegistry.registerStructures(StructureRegistry.loadStructures(null));
-        MachineryAssembler.LOGGER.info("[Machinery Assembler] Loaded {} structures.", StructureRegistry.getLoadedStructures().size());
+        MachineryAssembler.LOGGER.info("Loaded {} structures.", StructureRegistry.getLoadedStructures().size());
     }
 
     public void serverStart(FMLServerStartingEvent event) {

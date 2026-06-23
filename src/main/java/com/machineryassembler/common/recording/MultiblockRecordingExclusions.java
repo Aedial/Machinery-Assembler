@@ -19,8 +19,10 @@ import net.minecraftforge.common.util.Constants;
  */
 public class MultiblockRecordingExclusions {
 
+    private static final String TILE_TAGS_NBT_KEY = "tileTags";
+
     private final Set<String> excludedBlockKeys = new HashSet<>();
-    private final Set<String> excludedTileTagKeys = new HashSet<>();
+    private final Set<String> includedTileTagKeys = new HashSet<>();
 
     public boolean isBlockExcluded(@Nullable String blockKey) {
         return blockKey != null && excludedBlockKeys.contains(blockKey);
@@ -37,37 +39,45 @@ public class MultiblockRecordingExclusions {
         excludedBlockKeys.remove(blockKey);
     }
 
-    public boolean isTileTagExcluded(@Nullable String tileKey, @Nullable String tagKey) {
+    public boolean isTileTagIncluded(@Nullable String tileKey, @Nullable String tagKey) {
         if (tileKey == null || tagKey == null) return false;
 
-        return excludedTileTagKeys.contains(createTileTagKey(tileKey, tagKey));
+        return includedTileTagKeys.contains(createTileTagKey(tileKey, tagKey));
     }
 
-    public void setTileTagExcluded(@Nullable String tileKey, @Nullable String tagKey, boolean excluded) {
+    public boolean isTileTagExcluded(@Nullable String tileKey, @Nullable String tagKey) {
+        return !isTileTagIncluded(tileKey, tagKey);
+    }
+
+    public void setTileTagIncluded(@Nullable String tileKey, @Nullable String tagKey, boolean included) {
         if (tileKey == null || tagKey == null) return;
 
         String combinedKey = createTileTagKey(tileKey, tagKey);
-        if (excluded) {
-            excludedTileTagKeys.add(combinedKey);
+        if (included) {
+            includedTileTagKeys.add(combinedKey);
             return;
         }
 
-        excludedTileTagKeys.remove(combinedKey);
+        includedTileTagKeys.remove(combinedKey);
+    }
+
+    public void setTileTagExcluded(@Nullable String tileKey, @Nullable String tagKey, boolean excluded) {
+        setTileTagIncluded(tileKey, tagKey, !excluded);
     }
 
     public void clear() {
         excludedBlockKeys.clear();
-        excludedTileTagKeys.clear();
+        includedTileTagKeys.clear();
     }
 
     public boolean isEmpty() {
-        return excludedBlockKeys.isEmpty() && excludedTileTagKeys.isEmpty();
+        return excludedBlockKeys.isEmpty() && includedTileTagKeys.isEmpty();
     }
 
     public MultiblockRecordingExclusions copy() {
         MultiblockRecordingExclusions copy = new MultiblockRecordingExclusions();
         copy.excludedBlockKeys.addAll(excludedBlockKeys);
-        copy.excludedTileTagKeys.addAll(excludedTileTagKeys);
+        copy.includedTileTagKeys.addAll(includedTileTagKeys);
         return copy;
     }
 
@@ -80,12 +90,12 @@ public class MultiblockRecordingExclusions {
         }
 
         NBTTagList tileTagList = new NBTTagList();
-        for (String tileTagKey : excludedTileTagKeys) {
+        for (String tileTagKey : includedTileTagKeys) {
             tileTagList.appendTag(new NBTTagString(tileTagKey));
         }
 
         tag.setTag("blocks", blockList);
-        tag.setTag("tileTags", tileTagList);
+        tag.setTag(TILE_TAGS_NBT_KEY, tileTagList);
         return tag;
     }
 
@@ -98,9 +108,9 @@ public class MultiblockRecordingExclusions {
             exclusions.excludedBlockKeys.add(blockList.getStringTagAt(index));
         }
 
-        NBTTagList tileTagList = tag.getTagList("tileTags", Constants.NBT.TAG_STRING);
+        NBTTagList tileTagList = tag.getTagList(TILE_TAGS_NBT_KEY, Constants.NBT.TAG_STRING);
         for (int index = 0; index < tileTagList.tagCount(); index++) {
-            exclusions.excludedTileTagKeys.add(tileTagList.getStringTagAt(index));
+            exclusions.includedTileTagKeys.add(tileTagList.getStringTagAt(index));
         }
 
         return exclusions;

@@ -12,7 +12,7 @@ import mezz.jei.api.ingredients.IIngredients;
 import mezz.jei.api.ingredients.VanillaTypes;
 import mezz.jei.api.recipe.IRecipeCategory;
 
-import com.machineryassembler.MachineryAssembler;
+import com.machineryassembler.Tags;
 
 
 /**
@@ -45,7 +45,7 @@ public class CategoryStructurePreview implements IRecipeCategory<StructurePrevie
     @Nonnull
     @Override
     public String getModName() {
-        return MachineryAssembler.NAME;
+        return Tags.MODNAME;
     }
 
     @Nonnull

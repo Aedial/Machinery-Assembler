@@ -24,7 +24,7 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import com.machineryassembler.MachineryAssembler;
+import com.machineryassembler.Tags;
 import com.machineryassembler.client.autobuild.AutobuildHandler;
 import com.machineryassembler.client.render.InWorldPreviewRenderer;
 import com.machineryassembler.common.item.ItemAssemblerWrench;
@@ -41,7 +41,7 @@ import com.machineryassembler.common.item.ItemAssemblerWrench;
 @SideOnly(Side.CLIENT)
 public class PreviewKeybindHandler {
 
-    private static final String KEYBIND_CATEGORY = "key.categories." + MachineryAssembler.MODID;
+    private static final String KEYBIND_CATEGORY = "key.categories." + Tags.MODID;
 
     public static final KeyBinding KEY_CANCEL_PREVIEW = new KeyBinding(
         "key.machineryassembler.cancel_preview",

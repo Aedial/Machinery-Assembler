@@ -13,7 +13,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import com.machineryassembler.MachineryAssembler;
+import com.machineryassembler.Tags;
 import com.machineryassembler.common.item.ItemAssemblerWrench;
 import com.machineryassembler.common.item.ItemMultiblockRecordingTool;
 
@@ -21,7 +21,7 @@ import com.machineryassembler.common.item.ItemMultiblockRecordingTool;
 /**
  * Registry for Machinery Assembler items.
  */
-@Mod.EventBusSubscriber(modid = MachineryAssembler.MODID)
+@Mod.EventBusSubscriber(modid = Tags.MODID)
 public class ItemRegistry {
 
     public static final ItemAssemblerWrench ASSEMBLER_BATON = new ItemAssemblerWrench();

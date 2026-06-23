@@ -144,7 +144,7 @@ public class StructureRegistry implements Iterable<Structure> {
             sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "Reloaded " + loadedStructures.size() + " structures. Total: " + LOADED_STRUCTURES.size()));
         }
 
-        MachineryAssembler.LOGGER.info("[Machinery Assembler] Reloaded {} structures. Total: {}", loadedStructures.size(), LOADED_STRUCTURES.size());
+        MachineryAssembler.LOGGER.info("Reloaded {} structures. Total: {}", loadedStructures.size(), LOADED_STRUCTURES.size());
 
         // Notify JEI wrappers on client side
         notifyJEIReload();
