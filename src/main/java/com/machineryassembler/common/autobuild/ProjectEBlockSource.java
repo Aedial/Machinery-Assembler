@@ -87,10 +87,10 @@ public class ProjectEBlockSource implements BlockSource {
     @Override
     public BlockExtractionResult batchExtractDetailed(Map<String, Integer> requirements, BlockSourceContext context,
                                                       boolean simulate) {
-        if (!BlockSourceProviderId.EMC.isModAvailable()) this.refuse(requirements);
+        if (!BlockSourceProviderId.EMC.isModAvailable()) return this.refuse(requirements);
 
         IKnowledgeProvider knowledgeProvider = getKnowledgeProvider(context.getPlayer());
-        if (knowledgeProvider == null) this.refuse(requirements);
+        if (knowledgeProvider == null) return this.refuse(requirements);
 
         long remainingEmc = knowledgeProvider.getEmc();
         boolean extractedAny = false;
